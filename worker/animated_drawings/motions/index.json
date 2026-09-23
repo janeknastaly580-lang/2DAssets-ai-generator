@@ -1,0 +1,17 @@
+{
+  "_comment": "Motion library for Animated Drawings retargeting (SPEC §14.2). BVH files come from the Animated Drawings repository (Apache-2.0) and CC0 sources; place <id>.bvh + <id>.yaml next to this index together with retarget_humanoid.yaml.",
+  "clips": [
+    { "id": "idle", "name": "Idle", "file": "idle.bvh", "loop": true, "default_fps": 12, "frames": 8 },
+    { "id": "walk", "name": "Walk", "file": "walk.bvh", "loop": true, "default_fps": 12, "frames": 8 },
+    { "id": "run", "name": "Run", "file": "run.bvh", "loop": true, "default_fps": 12, "frames": 6 },
+    { "id": "jump", "name": "Jump", "file": "jump.bvh", "loop": false, "default_fps": 12, "frames": 10 },
+    { "id": "attack", "name": "Attack", "file": "attack.bvh", "loop": false, "default_fps": 12, "frames": 8 },
+    { "id": "hit", "name": "Hit", "file": "hit.bvh", "loop": false, "default_fps": 12, "frames": 4 },
+    { "id": "death", "name": "Death", "file": "death.bvh", "loop": false, "default_fps": 12, "frames": 10 },
+    { "id": "dance", "name": "Dance", "file": "dance.bvh", "loop": true, "default_fps": 12, "frames": 12 },
+    { "id": "wave", "name": "Wave", "file": "wave.bvh", "loop": true, "default_fps": 12, "frames": 8 },
+    { "id": "crouch", "name": "Crouch", "file": "crouch.bvh", "loop": false, "default_fps": 12, "frames": 6 },
+    { "id": "climb", "name": "Climb", "file": "climb.bvh", "loop": true, "default_fps": 12, "frames": 8 },
+    { "id": "cast", "name": "Cast", "file": "cast.bvh", "loop": false, "default_fps": 12, "frames": 10 }
+  ]
+}

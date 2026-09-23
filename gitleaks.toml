@@ -1,0 +1,6 @@
+[allowlist]
+description = "Wykluczenie plików środowiskowych .env"
+paths = [
+    '''^\.env$''',
+    '''^\.env\.local$'''
+]

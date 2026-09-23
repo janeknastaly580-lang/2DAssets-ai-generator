@@ -1,0 +1,6 @@
+modal>=0.64
+fastapi[standard]
+requests
+pillow
+numpy
+boto3

@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+.env*.local
+.env
+.env.example
+.data
+*.log
+.DS_Store
+coverage
+.vercel
+__pycache__
+worker/.modal
+tsconfig.tsbuildinfo
+next-env.d.ts
