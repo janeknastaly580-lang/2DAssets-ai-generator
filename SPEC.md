@@ -2,7 +2,7 @@
 
 > Specyfikacja produktu i systemu. Ten dokument jest **jedynym źródłem prawdy** o projekcie: na jego podstawie można odtworzyć całą aplikację (kod, bazę danych, konfigurację Supabase, Stripe, Resend, Cloudflare R2, Inngest, Modal, Vercel i dostawców AI) w identycznym kształcie.
 >
-> Stan dokumentu: **wersja 0.5 (2026-09-23) — wszystkie modele generujące podpięte przez fal.ai (`FAL_KEY`, §9.7): Rodin Gen-2.5 i TRELLIS (3D), ElevenLabs Sound Effects v2 (SFX), Lyria 3 Pro (muzyka), ElevenLabs TTS Turbo v2.5 (głos); Meshy i bezpośrednie API ElevenLabs usunięte; parametry modeli spoza UI ustawia LLM tłumacza (`model_params`, §8.3), który nie jest jeszcze podłączony.** Wcześniej (0.4, 2026-09-22): kod MVP napisany, schemat Supabase wdrożony, Resend przełączony na domenę produkcyjną `veyraflow.eu` (nadawca `website@veyraflow.eu`); **generatory Image i Animacje 2D usunięte z produktu (§9.0)**, 3D dostało selektor Engine i do 3 zdjęć wejściowych, TTS bez katalogu głosów, usuwanie konta natychmiastowe; aplikacja działa na `localhost:3000`**. Sekcja 0 opisuje dokładny stan wdrożenia i czynności ręczne. Każda zmiana w projekcie (lokalnie lub w dowolnej usłudze zewnętrznej) musi być odzwierciedlona tutaj.
+> Stan dokumentu: **wersja 0.6 (2026-09-24) — aplikacja zdeployowana na Vercelu jako projekt `asset-generator` (https://asset-generator-tawny.vercel.app, region `fra1`, auto-deploy z GitHuba `janeknastaly580-lang/2DAssets-ai-generator`), jeszcze bez zmiennych środowiskowych (§0.1, §0.3 pkt 13, §23.3).** Wcześniej (0.5, 2026-09-23): **wszystkie modele generujące podpięte przez fal.ai (`FAL_KEY`, §9.7): Rodin Gen-2.5 i TRELLIS (3D), ElevenLabs Sound Effects v2 (SFX), Lyria 3 Pro (muzyka), ElevenLabs TTS Turbo v2.5 (głos); Meshy i bezpośrednie API ElevenLabs usunięte; parametry modeli spoza UI ustawia LLM tłumacza (`model_params`, §8.3), który nie jest jeszcze podłączony.** Wcześniej (0.4, 2026-09-22): kod MVP napisany, schemat Supabase wdrożony, Resend przełączony na domenę produkcyjną `veyraflow.eu` (nadawca `website@veyraflow.eu`); **generatory Image i Animacje 2D usunięte z produktu (§9.0)**, 3D dostało selektor Engine i do 3 zdjęć wejściowych, TTS bez katalogu głosów, usuwanie konta natychmiastowe; aplikacja działa na `localhost:3000`**. Sekcja 0 opisuje dokładny stan wdrożenia i czynności ręczne. Każda zmiana w projekcie (lokalnie lub w dowolnej usłudze zewnętrznej) musi być odzwierciedlona tutaj.
 >
 > Język dokumentu: polski. Język interfejsu użytkownika, kodu, identyfikatorów, komunikatów i e-maili: **angielski**.
 
@@ -58,7 +58,7 @@ Sekcja opisuje **faktyczny stan** projektu po pierwszej implementacji. Reszta do
 | **Stripe** | brak kluczy — UI billingu pokazuje „Billing is not configured”; kod checkout/portal/webhooków gotowy (§11.6) |
 | **Dostawcy AI** | **2026-09-23: `FAL_KEY` wpisany do `.env.local`, `MOCK_PROVIDERS=false` w `.env`** — wszystkie 4 generatory (3D, SFX, muzyka, głos) wołają prawdziwe modele fal.ai (§9.7). `OPENAI_API_KEY` pusty → **LLM tłumacza jeszcze niepodłączony**: tłumacz = identyczność (+ style guide), moderacja = lista słów, `model_params` puste (parametry spoza UI = domyślne wartości dostawcy). Klucz fal zweryfikowany (uwierzytelnienie działa), ale **konto fal.ai ma wyczerpane saldo** (`403 User is locked. Reason: Exhausted balance`) — prawdziwe generacje ruszą po doładowaniu (§0.3 pkt 9). Meshy i bezpośrednie ElevenLabs usunięte z projektu (kod, env, webhook) |
 | **Inngest / Modal** | brak kluczy — kolejka działa **inline** w procesie Next.js (`lib/queue/dispatch.ts`, §14.1); worker Modal ma kod w `worker/`, nie jest wdrożony |
-| **Vercel** | celowo nic nie zrobiono (decyzja właściciela: na razie tylko localhost) |
+| **Vercel** | **2026-09-24: projekt `asset-generator`** (ID `prj_H6G7LFOahjC7fjpNghC1jdOxdzRA`; nazwa „Asset generator” odrzucona przez Vercel — nazwy projektów muszą być małymi literami bez spacji), konto/team `janeknastaly580-langs-projects` (`team_5ghyU9jSaokV9cFz0Ug9VIDZ`), plan **Hobby**. Podpięty pod repo GitHub **`janeknastaly580-lang/2DAssets-ai-generator`** — push na `main` = deploy Production. Framework Next.js, Node **24.x** (`engines.node: ">=22"` → Vercel wybiera najnowszą pasującą wersję), **Fluid compute ON**, region funkcji **`fra1`** (ustawienie projektu + `vercel.json`), `maxDuration = 300` w `/api/inngest`, `/api/jobs`, `/api/downloads`. Domena produkcyjna: **`https://asset-generator-tawny.vercel.app`**. Deployment Protection: domyślne *Standard* (`all_except_custom_domains`). **Zmienne środowiskowe celowo NIE są wpisane (decyzja właściciela 2026-09-24)** — build przechodzi bez nich, ale w runtime: strony zwracają 500 `MIDDLEWARE_INVOCATION_FAILED` (middleware tworzy klienta Supabase z `NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY`), endpointy `/api/*` wymagające bazy zwracają 500 `internal_error`, POST-y odrzucane jako `bad_origin` (`APP_URL` domyślnie `localhost`), `/api/inngest` → 401. Dokończenie: §0.3 pkt 13. Pliki `.env`, `.env.local`, `.env.example` pozostają w `.gitignore` i nie ma ich w repozytorium |
 | **Dokumenty prawne** | placeholdery w `docs/legal/*.md` (status `draft`), renderowane na `/terms`, `/privacy`, `/cookies`, `/ai-disclosure`, `/impressum` |
 
 ### 0.2 Zmienne środowiskowe — gdzie co wpisać
@@ -69,7 +69,7 @@ Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w
 - **`.env.local`** (gitignore) — **wyłącznie sekrety**: `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `AUTH_CODE_PEPPER`, klucze AI, `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `INNGEST_*`, `MODAL_WORKER_TOKEN`, `WORKER_WEBHOOK_SECRET`, `FAL_WEBHOOK_SECRET`, `SENTRY_DSN`. Klucze AI to tylko `OPENAI_API_KEY` i `FAL_KEY` (`MESHY_API_KEY`, `ELEVENLABS_API_KEY`, `MESHY_WEBHOOK_SECRET` usunięte 2026-09-23). Plik istnieje z wygenerowanymi `AUTH_CODE_PEPPER`, `WORKER_WEBHOOK_SECRET`, `MODAL_WORKER_TOKEN` i wpisanym `RESEND_API_KEY`. Na Vercelu każda z tych zmiennych ma być oznaczona **„Sensitive”** (Vercel szyfruje i nigdy nie pokazuje wartości). `SUPABASE_SERVICE_ROLE_KEY` wklejony przez właściciela (2026-09-20). Next.js łączy oba pliki; `.env.local` nadpisuje `.env`.
 - Żadna z powyższych zmiennych serwerowych nie trafia do bundla przeglądarki — tam idą tylko `NEXT_PUBLIC_*`; pilnuje tego `pnpm check:public-env` (§22).
 - **Supabase Secrets (Edge Functions)** — **nie są potrzebne**; projekt nie używa Edge Functions. Jeśli w przyszłości część logiki trafi do Edge Functions, do `supabase secrets set` trafią te same zmienne serwerowe z §24.
-- **Vercel** (później) — wszystkie zmienne z §24, sekrety oznaczone „Sensitive”.
+- **Vercel** (projekt `asset-generator`, §0.1) — wszystkie zmienne z §24, sekrety oznaczone „Sensitive”. **Stan 2026-09-24: żadna zmienna nie jest wpisana** (decyzja właściciela); instrukcja — §0.3 pkt 13.
 
 ### 0.3 Czynności ręczne (właściciel)
 
@@ -89,6 +89,14 @@ Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w
 10. **Inngest** (§23.6) i **Modal** (§23.7) — opcjonalne na localhost; bez nich działa tryb inline.
 11. ~~**Resend**: dodać i zweryfikować domenę `veyraflow.eu`~~ — zrobione 2026-09-22 (domena `verified`, `EMAIL_FROM="Veyraflow <website@veyraflow.eu>"`). Klucz API ograniczony do `veyraflow.eu` (`veyraflow-app-sending-eu`) utworzony i wpisany do `.env.local` 2026-09-22; wysyłka zweryfikowana. Pozostało opcjonalnie: usunąć stary klucz `veyraflow-app-sending`.
 12. Uzupełnić placeholdery z §27 (dokumenty prawne, ceny pakietów, Impressum).
+13. **Vercel — dokończenie wdrożenia** (projekt `asset-generator` istnieje i jest zdeployowany, §0.1; zmienne celowo niewpisane):
+    1. https://vercel.com → projekt **asset-generator** → **Settings → Environment Variables**. Dla każdej zmiennej z `.env` i `.env.local` (§24): **Add New** → Key/Value → środowiska *Production* + *Preview* (+ *Development* opcjonalnie). Zmienne z `.env.local` (sekrety) — zaznaczyć **Sensitive**. Można też użyć **Import .env** i wkleić zawartość pliku (sekrety potem oznaczyć jako Sensitive).
+    2. Na Vercelu ustawić inaczej niż lokalnie: `APP_URL` i `NEXT_PUBLIC_APP_URL` = `https://asset-generator-tawny.vercel.app` (lub docelowo `https://veyraflow.eu`) — bez tego wszystkie POST-y są odrzucane jako `bad_origin`, a linki w e-mailach prowadzą na localhost.
+    3. Bez `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY` (pkt 7) uploady i generacje na Vercelu **nie zadziałają** — sterownik lokalny (`.data/storage`) wymaga zapisywalnego, trwałego dysku, którego funkcje Vercela nie mają.
+    4. **Deployments** → ostatni deployment → **⋯ → Redeploy** (zmienne `NEXT_PUBLIC_*` są wkompilowywane w build, więc sam zapis zmiennych nie wystarczy).
+    5. Supabase → **Authentication → URL Configuration**: Site URL = produkcyjny `APP_URL`; Redirect URLs: dodać `https://asset-generator-tawny.vercel.app/auth/callback` oraz `https://*-janeknastaly580-langs-projects.vercel.app/auth/callback` (preview), zostawić `http://localhost:3000/auth/callback`.
+    6. R2 CORS (§23.2 pkt 3): dodać origin `https://asset-generator-tawny.vercel.app`.
+    7. Plan Hobby jest wyłącznie do użytku niekomercyjnego — przed włączeniem płatności Stripe przejść na **Pro**. Na Hobby kolejka inline (bez Inngest) ma limit 300 s na job; dłuższe generacje (np. Rodin) wymagają Inngest (§23.6).
 
 ### 0.4 Odstępstwa od pierwotnego projektu (uzasadnione lokalnym uruchomieniem)
 
@@ -230,6 +238,7 @@ Zasady przepływu:
 ├── .env.local                       ← SEKRETY (gitignore); na Vercelu = zmienne „Sensitive"
 ├── .env.example                     ← szablon obu plików (bez wartości; gitignore)
 ├── .claude/launch.json              ← konfiguracja podglądu dev servera (Claude Code)
+├── vercel.json                      ← Vercel: framework nextjs, regions ["fra1"] (§23.3)
 ├── middleware.ts                    ← odświeżanie sesji Supabase + guardy /app, /admin, ban (§5.2, §5.4)
 ├── app/
 │   ├── layout.tsx, globals.css      ← root layout (Providers: next-themes, TanStack Query, sonner) + CookieBanner
@@ -1684,12 +1693,18 @@ Układ 4 kolumn (desktop) / akordeon (mobile):
 5. Bez custom domeny publicznej (wszystko presigned).
 6. Weryfikacja po wklejeniu kluczy: **`pnpm r2:check`** (`scripts/check-r2.ts`) — czyta `.env` + `.env.local`, robi PUT → HEAD → GET → presigned GET (realny `fetch`) → DELETE na kluczu `_healthcheck/<uuid>.txt`, na koniec informacyjnie sprawdza CORS. Typowe błędy tłumaczy na przyczynę (zły account id → endpoint się nie rozwiązuje, `AccessDenied` → token bez Object Read & Write lub zawężony do innego bucketu, `NoSuchBucket` → zła nazwa w `R2_BUCKET`).
 
-### 23.3 Vercel (stan: **celowo nic nie zrobiono** — aplikacja działa na localhost; kroki do wykonania przy wdrożeniu)
-1. Projekt z repo (framework Next.js), Node 22, region funkcji `fra1`.
-2. Env (Production/Preview/Development) wg §24; sekrety oznaczone „Sensitive”.
-3. Fluid compute ON, `maxDuration` 300 s dla `/api/inngest` i `/api/downloads` (w `route.ts`: `export const maxDuration = 300`).
-4. Domena produkcyjna **`veyraflow.eu`** (apex) + `www.veyraflow.eu` → redirect 308 na apex; DNS (A/CNAME) wg instrukcji Vercel u rejestratora.
-5. Vercel Analytics włączone dopiero po zgodzie cookies (komponent ładowany warunkowo).
+### 23.3 Vercel (stan 2026-09-24: **projekt `asset-generator` utworzony i zdeployowany, bez zmiennych środowiskowych** — §0.1)
+1. ✅ Projekt **`asset-generator`** (Vercel → *Add New → Project → Import* repo GitHub `janeknastaly580-lang/2DAssets-ai-generator`, root `/`, framework **Next.js**, install/build/output — auto: pnpm wykrywany z `pnpm-lock.yaml`, `next build`). Node: `engines.node: ">=22"` w `package.json` → Vercel używa **24.x**. Region funkcji **`fra1`** (Frankfurt, obok Supabase `eu-central-1`) — ustawiony w projekcie (Settings → Functions → Region) i w **`vercel.json`**:
+   ```json
+   { "$schema": "https://openapi.vercel.sh/vercel.json", "framework": "nextjs", "regions": ["fra1"] }
+   ```
+   Branch `main` = Production; pozostałe branche/PR = Preview. Domena Production: `asset-generator-tawny.vercel.app`.
+2. ☐ Env (Production/Preview/Development) wg §24; sekrety oznaczone „Sensitive” — **celowo niewpisane** (decyzja właściciela 2026-09-24); instrukcja: §0.3 pkt 13. Build (`next build`) przechodzi bez żadnych zmiennych (zweryfikowane w czystym klonie repo); runtime bez nich zwraca 500.
+3. ✅ Fluid compute ON; `export const maxDuration = 300` w `app/api/inngest/route.ts`, `app/api/downloads/route.ts` i `app/api/jobs/route.ts` (w dwóch ostatnich kolejka inline wykonuje pracę w `after()`, więc limit czasu dotyczy całej generacji / budowy ZIP-a).
+4. ☐ Domena produkcyjna **`veyraflow.eu`** (apex) + `www.veyraflow.eu` → redirect 308 na apex; DNS (A/CNAME) wg instrukcji Vercel u rejestratora.
+5. ☐ Vercel Analytics włączone dopiero po zgodzie cookies (komponent ładowany warunkowo).
+6. Crony nie są konfigurowane w Vercel (brak `crons` w `vercel.json`) — harmonogramy (`retention-cleanup`, `expire-credits`, `reset-violation-counters`) obsługuje Inngest (§14.1).
+7. Plan **Hobby** (niekomercyjny) — przed uruchomieniem płatności przejść na Pro.
 
 ### 23.4 Stripe
 1. Produkty i ceny (test + live):
@@ -1889,5 +1904,5 @@ Rozstrzygnięte (2026-09-22): **generatory `image` i `sprite_animation` usunięt
 9. ✅ UI (§17): marketing, auth, app (dashboard, projects, generate ×6, library, asset, jobs, billing, settings, workspaces/new), share (§18), admin (§19).
 10. ✅ Formalności (§21): stopka, strony-placeholdery, baner cookies + menedżer zgód, zgody, eksport/usunięcie konta.
 11. ✅ Bezpieczeństwo (§22): CSP i nagłówki, rate limity, `check-public-env`, testy jednostkowe; ☐ Playwright e2e, CI.
-12. ☐ Wdrożenie na Vercel (celowo odłożone), deploy workera, konfiguracja webhooków u dostawców.
+12. ✅ Projekt Vercel `asset-generator` + deploy z GitHuba (§23.3, 2026-09-24); ☐ zmienne środowiskowe na Vercelu i redeploy (§0.3 pkt 13), ☐ deploy workera, ☐ konfiguracja webhooków u dostawców.
 13. ☐ Uzupełnić placeholdery z §27 i aktualizować ten dokument przy każdej zmianie.
