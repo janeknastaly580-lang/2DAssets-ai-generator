@@ -11,6 +11,9 @@ import { isFlagEnabled, PIPELINE_FLAG } from "@/lib/flags";
 import { MAX_QUEUED_JOBS_PER_WORKSPACE } from "@/lib/plans";
 import { ACTIVE_JOB_STATUSES } from "@/lib/utils";
 
+/** SPEC §23.3 — inline queue (no Inngest) runs the pipeline in `after()`. Vercel: maxDuration 300 (Fluid compute). */
+export const maxDuration = 300;
+
 /** GET /api/jobs?status=&type=&project=&limit= — jobs of the current workspace (no translated_prompt). */
 export const GET = handler(async (req: NextRequest) => {
   const { userId } = await requireUser();

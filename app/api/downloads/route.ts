@@ -5,6 +5,9 @@ import { downloadRequestSchema } from "@/lib/validation/misc";
 import { getCurrentWorkspace, requireWorkspaceRole } from "@/lib/workspace";
 import { dispatchDownload } from "@/lib/queue/dispatch";
 
+/** SPEC §23.3 — inline ZIP build runs in `after()`. Vercel: maxDuration 300 (Fluid compute). */
+export const maxDuration = 300;
+
 /** POST /api/downloads — ZIP with an engine preset (SPEC §10.6). */
 export const POST = handler(async (req: NextRequest) => {
   requireSameOrigin(req);
