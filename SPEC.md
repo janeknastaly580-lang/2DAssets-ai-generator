@@ -317,7 +317,7 @@ Zasady przepływu:
 ├── instrumentation.ts               ← Next.js onRequestError → Error Reporting (§25.4)
 ├── scripts/check-public-env.ts      ← test bezpieczeństwa env/bundla (§22)
 ├── scripts/check-r2.ts              ← round-trip PUT/HEAD/GET/presign/DELETE na R2 (§23.2)
-├── tests/                           ← postprocess.test.ts, validation.test.ts, email.test.ts, falModels.test.ts, analytics.test.ts, errorReporting.test.ts, stubs/
+├── tests/                           ← postprocess.test.ts, validation.test.ts, email.test.ts, falModels.test.ts, analytics.test.ts, errorReporting.test.ts, accountDeletion.test.ts, stubs/
 └── docs/legal/                      ← terms.md, privacy.md, cookies.md, ai-disclosure.md, impressum.md (placeholdery)
 ```
 
@@ -337,7 +337,7 @@ Cały przepływ realizuje **nasz backend** (service role), nie wbudowane e-maile
 
 Konfiguracja Supabase Auth: „Confirm email” = **włączone** (niezweryfikowany użytkownik nie może się zalogować), wbudowane e-maile Supabase nieużywane (nigdy nie wołamy `signUp` z klienta).
 
-1. `/signup`: formularz `email`, `password` (min. 10 znaków, wymóg: litera + cyfra), checkbox **„I accept the Terms of Service and Privacy Policy”** (wymagany), checkbox marketingowy (opcjonalny).
+1. `/signup`: formularz `email`, `password` (10–30 znaków, wymóg: litera + cyfra; `maxLength=30` na wszystkich polach hasła — login, signup, reset, zmiana hasła; walidacja Zod `passwordSchema` `.max(30)`, pola „current”/login też `.max(30)`), checkbox **„I accept the Terms of Service and Privacy Policy”** (wymagany), checkbox marketingowy (opcjonalny).
 2. `POST /api/auth/signup`:
    - walidacja zod; rate limit (§22);
    - jeśli konto z tym e-mailem istnieje i jest zweryfikowane → odpowiedź generyczna („If this email is new, we sent a code”) — bez ujawniania istnienia konta; jeśli istnieje i **nie** jest zweryfikowane → ponownie wysyłamy kod (aktualizując hasło na podane);
@@ -366,7 +366,7 @@ Konfiguracja Supabase Auth: „Confirm email” = **włączone** (niezweryfikowa
 ### 5.4 Konto
 
 - `profiles.role`: `user` | `admin`. Admin nadawany ręcznie w bazie (seed) lub przez innego admina.
-- Ustawienia konta (`/app/settings`): display name, avatar (upload do R2, max 2 MB), zmiana hasła (wymaga starego), zmiana e-maila (roadmapa), zgody marketingowe, usunięcie konta (§21.5), eksport danych (§21.5).
+- Ustawienia konta (`/app/settings`): display name (max 40 znaków — `maxLength=40` w UI, Zod `display_name .max(40)`), avatar (upload do R2, max 2 MB), zmiana hasła (wymaga starego), zmiana e-maila (roadmapa), zgody marketingowe, usunięcie konta (§21.5), eksport danych (§21.5).
 - Zbanowany użytkownik: `profiles.banned_at != null` → middleware wylogowuje i pokazuje `/banned` z powodem i kontaktem.
 
 ---
@@ -1626,7 +1626,12 @@ Układ 4 kolumn (desktop) / akordeon (mobile):
   2. Przycisk **„Delete my account permanently"** jest nieaktywny, dopóki wpisany tekst nie zgadza się (bez uwzględniania wielkości liter) z adresem zalogowanego konta.
   3. `POST /api/account` z `{ action: "delete_account", email }`. Serwer **ponownie** porównuje `email` z adresem z sesji — niezgodność to `email_mismatch` (HTTP 400). Warunek z UI nie jest jedynym zabezpieczeniem.
   4. Blokada: właściciel workspace'u zespołowego musi wcześniej przekazać własność lub usunąć workspace → `owns_team` (HTTP 400).
-  5. Wpis do `audit_log` (`account.deletion.execute`), e-mail **`account-deleted`** (§20.3 — renderowany inline), a następnie w tym samym żądaniu: usunięcie plików z R2 (prefiksy `ws/<id>/` każdego workspace'u użytkownika i `users/<id>/`) i `auth.admin.deleteUser` → kaskadowe usunięcie profilu, workspace'ów, projektów, assetów i księgi.
+  5. Wpis do `audit_log` (`account.deletion.execute`), a następnie w tym samym żądaniu:
+     - **najpierw pliki**: `deleteUserFiles(userId, workspaceIds)` z `lib/storage/index.ts` usuwa z R2 prefiksy `ws/<id>/` (assety, podglądy, referencje, uploady) i `downloads/<id>/` (ZIP-y) każdego workspace'u, którego użytkownik jest ownerem, oraz `users/<id>/` (avatar, eksporty danych). Błąd R2 **nie jest wyciszany** — żądanie kończy się `delete_failed` (HTTP 500), a konto i rekordy zostają nietknięte, więc użytkownik może ponowić próbę (bez tego pliki zostałyby w buckecie na zawsze, bo po usunięciu rekordów nie ma już po nich śladu);
+     - **potem baza**: `auth.admin.deleteUser` → trigger `profiles_before_delete` + kaskada usuwają profil, workspace'y, projekty, referencje, assety (`assets`, `asset_files`), joby (także te zlecone przez użytkownika w cudzych workspace'ach zespołowych — `jobs.user_id on delete cascade`), uploady, pobrania, linki udostępniania, zaproszenia, zdarzenia moderacji i księgę kredytów;
+     - **na końcu** e-mail **`account-deleted`** (§20.3 — renderowany inline); jego błąd nie przerywa żądania.
+     Assety, które użytkownik utworzył w **cudzym** workspace zespołowym, należą do tego zespołu i zostają (`assets.created_by → null`).
+     Ten sam `deleteUserFiles` wykonuje admin (`DELETE /api/admin/users/:id`), a `DELETE /api/workspaces/:id` (workspace zespołowy) usuwa analogicznie `ws/<id>/` i `downloads/<id>/`, również przerywając operację przy błędzie R2.
   6. Odpowiedź `{ deleted: true, next: "/" }` → klient przekierowuje na stronę główną.
 
   Anonimizacja `audit_log` / `moderation_events` (user_id → null, treść zachowana 90 dni do celów bezpieczeństwa) i anulowanie subskrypcji w Stripe (`cancel_at_period_end=false`, natychmiast) działają jak wcześniej — wykonuje je trigger `profiles_before_delete` i kaskada.
@@ -1891,7 +1896,7 @@ Odtworzenie bazy od zera: `supabase link --project-ref <ref>` → `supabase db p
 Od 2026-09-23 `.env` ma `MOCK_PROVIDERS=false` — generacje idą do fal.ai i kosztują (§9.7). Aby rozwijać i testować UI oraz pipeline bez kosztów, ustaw `MOCK_PROVIDERS=true`: pipeline'y generują wtedy placeholdery lokalnie (§0.4). Pliki lądują w `.data/storage/` (gitignore).
 
 ### 25.2 Testy
-- Unit (Vitest) — **zrobione**: `tests/postprocess.test.ts` (packer atlasu + `.tres`, kwantyzacja palety, WAV/normalizacja/loop, GLB writer/split, presety silników) `tests/validation.test.ts` (schematy zod auth/jobs/style guide, kontrakty tłumacza i moderacji) `tests/email.test.ts` (routing alias→szablon Resend vs. renderer inline, escaping wartości użytkownika, odrzucanie linków spoza `http(s)`) i `tests/falModels.test.ts` (§9.7: routing endpointów, mapowanie parametrów UI → fal dla Rodina/TRELLIS/SFX/Lyrii/TTS, pierwszeństwo ustawień ręcznych nad `model_params`, odrzucanie niepoprawnych wartości LLM, reguły TRELLIS i zakres `speed`, koszty, kontrakt tłumacza z `model_params`) i `tests/analytics.test.ts` (§21.6: oczyszczanie URL-i dla GA4 — tokeny/UUID → `[id]`, usuwanie query poza `utm_*`) i `tests/errorReporting.test.ts` (§25.4: format `message`/`reportLocation`, dokładny URL i treść `events:report` przy zamockowanym `fetch`, no-op bez konfiguracji, brak wyjątku przy awarii sieci, filtr szumu przeglądarki) — **44 testy**. `tests/validation.test.ts` pilnuje też, że `ASSET_TYPES` zawiera dokładnie 4 typy po usunięciu generatorów 2D (§9.0) i sprawdza domyślne wartości `model3dInputSchema`. Księga kredytów przetestowana skryptem SQL bezpośrednio na projekcie (§0.1). Do dodania: webhook Stripe (fixtures), testy adapterów z `msw`.
+- Unit (Vitest) — **zrobione**: `tests/postprocess.test.ts` (packer atlasu + `.tres`, kwantyzacja palety, WAV/normalizacja/loop, GLB writer/split, presety silników) `tests/validation.test.ts` (schematy zod auth/jobs/style guide, kontrakty tłumacza i moderacji) `tests/email.test.ts` (routing alias→szablon Resend vs. renderer inline, escaping wartości użytkownika, odrzucanie linków spoza `http(s)`) i `tests/falModels.test.ts` (§9.7: routing endpointów, mapowanie parametrów UI → fal dla Rodina/TRELLIS/SFX/Lyrii/TTS, pierwszeństwo ustawień ręcznych nad `model_params`, odrzucanie niepoprawnych wartości LLM, reguły TRELLIS i zakres `speed`, koszty, kontrakt tłumacza z `model_params`) i `tests/analytics.test.ts` (§21.6: oczyszczanie URL-i dla GA4 — tokeny/UUID → `[id]`, usuwanie query poza `utm_*`) i `tests/errorReporting.test.ts` (§25.4: format `message`/`reportLocation`, dokładny URL i treść `events:report` przy zamockowanym `fetch`, no-op bez konfiguracji, brak wyjątku przy awarii sieci, filtr szumu przeglądarki) i `tests/accountDeletion.test.ts` (§21.5: `deleteUserFiles` usuwa `ws/<id>/`, `downloads/<id>/` i `users/<id>/`, a błąd storage jest propagowany) — **46 testów**. `tests/validation.test.ts` pilnuje też, że `ASSET_TYPES` zawiera dokładnie 4 typy po usunięciu generatorów 2D (§9.0) i sprawdza domyślne wartości `model3dInputSchema`. Księga kredytów przetestowana skryptem SQL bezpośrednio na projekcie (§0.1). Do dodania: webhook Stripe (fixtures), testy adapterów z `msw`.
 - Integracyjne: pipeline'y z `msw` mockami dostawców; Inngest `InngestTestEngine`.
 - E2E (Playwright) — **do dodania**: rejestracja z kodem (kod odczytywany z bazy w teście), logowanie, tworzenie projektu, generacja obrazu (mock), pobieranie ZIP, checkout (Stripe test mode).
 - CI (GitHub Actions) — do dodania (repo nie jest jeszcze w git): lint, typecheck, unit, `check-public-env`, build; e2e na PR do `main`.

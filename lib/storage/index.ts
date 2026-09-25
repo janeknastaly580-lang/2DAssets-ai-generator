@@ -35,4 +35,18 @@ export function storage(): StorageDriver {
   return integrations.r2 ? r2Storage() : localStorageDriver();
 }
 
+/**
+ * Account deletion (SPEC §21.5): every file of the user's workspaces (assets, references, uploads,
+ * ZIP downloads) plus `users/<id>/` (avatar, data exports). Throws on failure — callers must run it
+ * before deleting the DB rows, otherwise the orphaned keys can never be found again.
+ */
+export async function deleteUserFiles(userId: string, workspaceIds: string[]) {
+  const st = storage();
+  for (const ws of workspaceIds) {
+    await st.deletePrefix(`ws/${ws}/`);
+    await st.deletePrefix(`downloads/${ws}/`);
+  }
+  await st.deletePrefix(`users/${userId}/`);
+}
+
 export { storageKeys, mimeFor, extForMime } from "./keys";

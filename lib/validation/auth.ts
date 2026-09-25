@@ -6,7 +6,7 @@ export const emailSchema = z.string().trim().toLowerCase().email().max(254);
 export const passwordSchema = z
   .string()
   .min(10, "Password must be at least 10 characters")
-  .max(128)
+  .max(30, "Password must be at most 30 characters")
   .regex(/[a-zA-Z]/, "Password must contain a letter")
   .regex(/[0-9]/, "Password must contain a digit");
 
@@ -38,10 +38,10 @@ export const resetPasswordSchema = z
   })
   .refine((v) => v.password === v.confirm, { message: "Passwords do not match", path: ["confirm"] });
 
-export const loginSchema = z.object({ email: emailSchema, password: z.string().min(1, "Enter your password") });
+export const loginSchema = z.object({ email: emailSchema, password: z.string().min(1, "Enter your password").max(30) });
 
 export const changePasswordSchema = z
-  .object({ current: z.string().min(1), password: passwordSchema, confirm: z.string() })
+  .object({ current: z.string().min(1).max(30), password: passwordSchema, confirm: z.string() })
   .refine((v) => v.password === v.confirm, { message: "Passwords do not match", path: ["confirm"] });
 
 export type SignupInput = z.infer<typeof signupSchema>;

@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { updateProfileSchema } from "@/lib/validation/misc";
 import { passwordSchema } from "@/lib/validation/auth";
-import { storage } from "@/lib/storage";
+import { deleteUserFiles, storage } from "@/lib/storage";
 import { env } from "@/lib/env";
 import { sendTemplateEmail } from "@/lib/email/resend";
 import { dispatchDataExport } from "@/lib/queue/dispatch";
@@ -93,14 +93,18 @@ export const POST = handler(async (req: NextRequest) => {
       if (teams?.length) throw new ApiError("owns_team", "Transfer or delete your team workspaces first", 400);
 
       await audit(userId, "account.deletion.execute", { type: "user", id: userId });
-      // Send before the row disappears; failures must not block the deletion.
-      await sendTemplateEmail({ to: email, alias: "account-deleted", variables: {} }).catch(() => undefined);
 
+      // Files first: if R2 fails the account stays intact and the user can retry.
       const { data: owned } = await db.from("workspaces").select("id").eq("owner_id", userId);
-      for (const w of owned ?? []) await storage().deletePrefix(`ws/${w.id}/`).catch(() => undefined);
-      await storage().deletePrefix(`users/${userId}/`).catch(() => undefined);
+      try {
+        await deleteUserFiles(userId, (owned ?? []).map((w) => w.id));
+      } catch {
+        throw new ApiError("delete_failed", "Could not delete your files. Nothing was removed — please try again.", 500);
+      }
       const { error } = await db.auth.admin.deleteUser(userId);
       if (error) throw new ApiError("delete_failed", error.message, 500);
+      // Confirmation only after everything is gone; failures must not fail the request.
+      await sendTemplateEmail({ to: email, alias: "account-deleted", variables: {} }).catch(() => undefined);
       return ok({ deleted: true, next: "/" });
     }
     default:

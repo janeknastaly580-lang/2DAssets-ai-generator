@@ -61,11 +61,11 @@ function ResetForm() {
         <OtpInput length={8} value={code} onChange={setCode} />
         <div className="grid gap-2">
           <Label htmlFor="password">New password</Label>
-          <Input id="password" type="password" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input id="password" type="password" maxLength={30} autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         <div className="grid gap-2">
           <Label htmlFor="confirm">Repeat password</Label>
-          <Input id="confirm" type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          <Input id="confirm" type="password" maxLength={30} autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         </div>
         <Button type="submit" disabled={busy}>
           {busy ? "Saving…" : "Set new password"}

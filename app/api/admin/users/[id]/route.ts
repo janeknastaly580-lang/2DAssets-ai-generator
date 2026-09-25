@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { adminUserPatchSchema } from "@/lib/validation/misc";
 import { sendTemplateEmail } from "@/lib/email/resend";
 import { env } from "@/lib/env";
-import { storage } from "@/lib/storage";
+import { deleteUserFiles } from "@/lib/storage";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -69,8 +69,11 @@ export const DELETE = handler(async (req: NextRequest, { params }: Ctx) => {
   if (id === admin.userId) throw new ApiError("forbidden", "You cannot delete yourself", 400);
   const db = supabaseAdmin();
   const { data: wss } = await db.from("workspaces").select("id").eq("owner_id", id);
-  for (const w of wss ?? []) await storage().deletePrefix(`ws/${w.id}/`).catch(() => undefined);
-  await storage().deletePrefix(`users/${id}/`).catch(() => undefined);
+  try {
+    await deleteUserFiles(id, (wss ?? []).map((w) => w.id));
+  } catch {
+    throw new ApiError("delete_failed", "Could not delete the user's files; nothing was removed", 500);
+  }
   const { error } = await db.auth.admin.deleteUser(id);
   if (error) throw new ApiError("delete_failed", error.message, 400);
   await audit(admin.userId, "admin.user.delete", { type: "user", id }, {}, getClientIp(req));

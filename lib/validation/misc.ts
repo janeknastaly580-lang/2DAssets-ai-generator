@@ -53,7 +53,7 @@ export const presignUploadSchema = z.object({
 export const completeUploadSchema = z.object({ upload_id: z.string().uuid() });
 
 export const updateProfileSchema = z.object({
-  display_name: z.string().trim().min(1).max(60).optional(),
+  display_name: z.string().trim().min(1).max(40).optional(),
   marketing_consent: z.boolean().optional(),
   notification_prefs: z
     .object({ job_completed: z.boolean().optional(), assets_expiring: z.boolean().optional() })

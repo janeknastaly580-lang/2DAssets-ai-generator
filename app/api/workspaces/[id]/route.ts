@@ -41,7 +41,12 @@ export const DELETE = handler(async (req: NextRequest, { params }: Ctx) => {
   if (ctx.workspace.subscription_status === "active") {
     throw new ApiError("subscription_active", "Cancel the Studio subscription first (Manage subscription)", 400);
   }
-  await storage().deletePrefix(`ws/${id}/`).catch(() => undefined);
+  try {
+    await storage().deletePrefix(`ws/${id}/`);
+    await storage().deletePrefix(`downloads/${id}/`);
+  } catch {
+    throw new ApiError("delete_failed", "Could not delete the workspace files. Nothing was removed — please try again.", 500);
+  }
   const { error } = await supabaseAdmin().from("workspaces").delete().eq("id", id);
   if (error) throw error;
   await audit(userId, "workspace.delete", { type: "workspace", id });

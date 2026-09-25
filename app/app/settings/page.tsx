@@ -181,7 +181,7 @@ function SettingsInner() {
               </div>
               <div className="grid gap-2">
                 <Label>Display name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
+                <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
               </div>
               <div className="grid gap-2">
                 <Label>E-mail</Label>
@@ -202,9 +202,9 @@ function SettingsInner() {
             <Card>
               <CardHeader><CardTitle>Change password</CardTitle><CardDescription>At least 10 characters with a letter and a digit.</CardDescription></CardHeader>
               <CardContent className="flex flex-col gap-3">
-                <Input type="password" placeholder="Current password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} />
-                <Input type="password" placeholder="New password" value={pw.password} onChange={(e) => setPw({ ...pw, password: e.target.value })} />
-                <Input type="password" placeholder="Repeat new password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} />
+                <Input type="password" maxLength={30} placeholder="Current password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} />
+                <Input type="password" maxLength={30} placeholder="New password" value={pw.password} onChange={(e) => setPw({ ...pw, password: e.target.value })} />
+                <Input type="password" maxLength={30} placeholder="Repeat new password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} />
                 <Button className="w-fit" onClick={changePassword} disabled={!pw.current || !pw.password}>Update password</Button>
               </CardContent>
             </Card>

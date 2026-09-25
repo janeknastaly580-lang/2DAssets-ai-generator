@@ -64,8 +64,8 @@ export default function SignupPage() {
         </div>
         <div className="grid gap-2">
           <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} aria-invalid={Boolean(errors.password)} />
-          <p className="text-muted-foreground text-xs">At least 10 characters with a letter and a digit.</p>
+          <Input id="password" type="password" maxLength={30} autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} aria-invalid={Boolean(errors.password)} />
+          <p className="text-muted-foreground text-xs">10–30 characters with a letter and a digit.</p>
           {errors.password && <p className="text-destructive text-xs">{errors.password}</p>}
         </div>
         <label className="flex items-start gap-2 text-sm">

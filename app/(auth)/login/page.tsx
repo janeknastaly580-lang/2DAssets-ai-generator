@@ -76,7 +76,7 @@ function LoginForm() {
               Forgot password?
             </Link>
           </div>
-          <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input id="password" type="password" maxLength={30} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         {unverified && (
           <Alert variant="warning">
