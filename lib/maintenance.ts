@@ -7,7 +7,7 @@ import { env } from "@/lib/env";
 import { TRASH_DAYS } from "@/lib/plans";
 
 /**
- * Scheduled maintenance tasks (SPEC §13, §14.1). Called by Inngest crons in production and by
+ * Scheduled maintenance tasks (SPEC §13, §14.1). Called by Upstash scheduled workflows in production and by
  * `POST /api/admin/maintenance` (admin) or `pnpm tsx scripts/maintenance.ts` locally.
  */
 

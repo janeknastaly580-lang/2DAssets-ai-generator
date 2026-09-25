@@ -1,32 +1,47 @@
 import "server-only";
 import { after } from "next/server";
-import { inngest } from "@/inngest/client";
-import { integrations } from "@/lib/env";
+import { env, integrations } from "@/lib/env";
 import { runGenerationJob } from "@/lib/pipelines/run";
 import { buildDownloadZip } from "@/lib/downloads";
 import { buildDataExport } from "@/lib/dataExport";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { planFor } from "@/lib/plans";
 import { reportError } from "@/lib/errorReporting";
+import { workflowClient, workflowUrl, type WorkflowName } from "./upstash";
 
 /**
- * Queue dispatcher. With Inngest configured (INNGEST_EVENT_KEY, or the local dev server reachable)
- * events go to Inngest; otherwise work runs inline after the response is sent (`after()`), which keeps
- * localhost fully functional without extra processes (SPEC §14.1, §25.1).
+ * Queue dispatcher. With Upstash configured (QSTASH_TOKEN) work is triggered as an Upstash Workflow
+ * run; otherwise — or when the trigger fails — it runs inline after the response is sent (`after()`),
+ * which keeps localhost fully functional without extra processes (SPEC §14.1, §25.1).
  */
-async function trySend(event: Parameters<typeof inngest.send>[0]): Promise<boolean> {
-  if (!integrations.inngest && process.env.INNGEST_DEV !== "1") return false;
+const LOCAL_URL = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/;
+
+async function trigger(name: WorkflowName, body: Record<string, string>, opts: { runId?: string; retries?: number } = {}) {
+  if (!integrations.queue) return null;
+  const url = workflowUrl(name);
+  // Cloud QStash cannot call localhost — the run would never start. Use the emulator (pnpm qstash:dev) or inline.
+  if (LOCAL_URL.test(url) && !LOCAL_URL.test(env.QSTASH_URL)) return null;
   try {
-    await inngest.send(event);
-    return true;
+    const { workflowRunId } = await workflowClient().trigger({
+      url,
+      body,
+      workflowRunId: opts.runId,
+      retries: opts.retries ?? 3,
+      disableTelemetry: true,
+    });
+    return workflowRunId;
   } catch (e) {
-    console.warn("[queue] inngest.send failed, falling back to inline execution:", (e as Error).message);
-    return false;
+    console.warn(`[queue] Upstash trigger ${name} failed, falling back to inline execution:`, (e as Error).message);
+    return null;
   }
 }
 
-export async function dispatchGeneration(jobId: string, workspaceId: string): Promise<"inngest" | "inline"> {
-  if (await trySend({ name: "asset/generate.requested", data: { job_id: jobId, workspace_id: workspaceId } })) return "inngest";
+export async function dispatchGeneration(jobId: string, workspaceId: string): Promise<"queue" | "inline"> {
+  const runId = await trigger("generate-asset", { job_id: jobId, workspace_id: workspaceId }, { runId: `gen-${jobId}` });
+  if (runId) {
+    await supabaseAdmin().from("jobs").update({ workflow_run_id: runId }).eq("id", jobId);
+    return "queue";
+  }
   after(() => runInlineQueue(workspaceId));
   return "inline";
 }
@@ -68,20 +83,16 @@ export async function runInlineQueue(workspaceId: string): Promise<void> {
 }
 
 export async function dispatchDownload(downloadId: string) {
-  if (await trySend({ name: "download/zip.requested", data: { download_id: downloadId } })) return;
+  if (await trigger("build-download-zip", { download_id: downloadId }, { retries: 1 })) return;
   after(() => buildDownloadZip(downloadId));
 }
 
 export async function dispatchDataExport(userId: string) {
-  if (await trySend({ name: "account/export.requested", data: { user_id: userId } })) return;
+  if (await trigger("data-export", { user_id: userId }, { retries: 1 })) return;
   after(() =>
     buildDataExport(userId).catch((e) => {
       console.error("[export] failed", e);
       return reportError(e, { where: "data export", userId });
     }),
   );
-}
-
-export async function dispatchCancel(jobId: string) {
-  await trySend({ name: "asset/generate.cancelled", data: { job_id: jobId } });
 }

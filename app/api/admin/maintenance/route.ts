@@ -5,7 +5,7 @@ import { expireCreditsSweep, resetViolationCounters, retentionCleanup } from "@/
 
 const schema = z.object({ task: z.enum(["retention", "expire_credits", "violations"]) });
 
-/** POST /api/admin/maintenance — run a scheduled task on demand (useful without Inngest locally). */
+/** POST /api/admin/maintenance — run a scheduled task on demand (useful locally, where Upstash schedules do not run). */
 export const POST = handler(async (req: NextRequest) => {
   requireSameOrigin(req);
   const admin = await requireAdmin();

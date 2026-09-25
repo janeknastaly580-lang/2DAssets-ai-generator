@@ -1,16 +1,14 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { inngest } from "@/inngest/client";
-import { integrations } from "@/lib/env";
 
-/** Shared relay for provider webhooks (SPEC §16.7): verify → emit `provider/webhook.received`. */
-export async function relayProviderWebhook(provider: "fal" | "worker", payload: Record<string, unknown>) {
-  if (integrations.inngest || process.env.INNGEST_DEV === "1") {
-    await inngest.send({ name: "provider/webhook.received", data: { provider, payload } }).catch((e) => console.warn("[webhook relay]", e.message));
-  } else {
-    console.info(`[webhook:${provider}] received (polling mode)`, Object.keys(payload));
-  }
+/**
+ * Provider webhooks (SPEC §16.7) are acknowledged and logged only: pipelines poll the provider and
+ * checkpoint the result themselves, so the payload (which carries output file URLs) goes nowhere.
+ */
+export async function acknowledgeProviderWebhook(provider: "fal" | "worker", payload: Record<string, unknown>) {
+  const id = payload.request_id ?? payload.task_id ?? payload.id;
+  console.info(`[webhook:${provider}] received`, typeof id === "string" ? id : "(no id)");
   return NextResponse.json({ ok: true });
 }
 

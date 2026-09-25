@@ -9,10 +9,33 @@ export type WorkspaceRow = Database["public"]["Tables"]["workspaces"]["Row"];
 export type AssetRow = Database["public"]["Tables"]["assets"]["Row"];
 export type AssetFileRow = Database["public"]["Tables"]["asset_files"]["Row"];
 
-/** Runtime hooks so the same pipeline code runs inline (dev) or inside Inngest steps. */
+/** Runtime hooks so the same pipeline code runs inline (dev) or inside Upstash Workflow steps. */
 export interface PipelineRuntime {
   sleep(ms: number): Promise<void>;
   log(msg: string, data?: Record<string, unknown>): void;
+  /**
+   * Epoch ms after which provider polling stops and the pipeline throws `PipelineYield`, so a
+   * workflow step ends well before Vercel's 300 s limit and the next step resumes. Inline: none.
+   */
+  deadline?: number;
+}
+
+/** Checkpoint of one provider request, stored in `jobs.provider_calls` (SPEC §8, §14.1). */
+export interface ProviderCallState {
+  provider: string;
+  model: string;
+  id: string | null;
+  submitted_at: string;
+  done?: boolean;
+  result?: unknown;
+}
+
+/** Thrown when the runtime deadline is reached while a provider is still working. Not a failure. */
+export class PipelineYield extends Error {
+  constructor() {
+    super("Pipeline yielded until the next workflow step");
+    this.name = "PipelineYield";
+  }
 }
 
 export interface PipelineContext<TInput> {
@@ -28,6 +51,12 @@ export interface PipelineContext<TInput> {
   assertActive(): Promise<void>;
   /** provider job id persisted for idempotent resume */
   setProviderJob(provider: string, model: string, providerJobId: string | null): Promise<void>;
+  /** per-request checkpoints; keys are assigned in call order, so a resumed run maps to the same entries */
+  providerCalls: {
+    nextKey(model: string): string;
+    get(key: string): ProviderCallState | undefined;
+    save(key: string, state: ProviderCallState): Promise<void>;
+  };
 }
 
 export interface OutputFile {

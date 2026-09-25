@@ -2,7 +2,7 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { moderatePrompt, MODERATION_PROMPT_VERSION } from "@/lib/ai/moderation";
-import { translatePrompt, TRANSLATOR_PROMPT_VERSION, TranslationDroppedInfoError } from "@/lib/ai/translator";
+import { translatePrompt, TRANSLATOR_PROMPT_VERSION, TranslationDroppedInfoError, type TranslatorOutput } from "@/lib/ai/translator";
 import { falModelFor, llmParamsForTranslator } from "@/lib/ai/falModels";
 import { ProviderError } from "@/lib/ai/providers/types";
 import { releaseReservation, settleJobCredits } from "@/lib/credits/ledger";
@@ -14,7 +14,7 @@ import { styleGuideSchema, type StyleGuide } from "@/lib/validation/project";
 import { runModel3dPipeline } from "./model3d";
 import { runMusicPipeline, runSfxPipeline, runVoicePipeline } from "./audio";
 import { persistOutputs } from "./finalize";
-import { JobFailure, type JobRow, type PipelineContext, type PipelineResult, type PipelineRuntime } from "./types";
+import { JobFailure, PipelineYield, type JobRow, type PipelineContext, type PipelineResult, type PipelineRuntime, type ProviderCallState } from "./types";
 
 const TERMINAL = new Set(["completed", "failed", "rejected", "cancelled"]);
 
@@ -33,27 +33,34 @@ export function moderationTextFor(type: AssetType, input: JobInput): string {
 }
 
 /**
- * The universal generation pipeline (SPEC §8). Idempotent per stage: re-running a job resumes
- * from its persisted status. Used by the Inngest function and by the inline dev fallback.
+ * The universal generation pipeline (SPEC §8). Resumable: moderation and translation run once
+ * (their results are persisted on the job) and provider requests are checkpointed in
+ * `jobs.provider_calls`, so a re-run continues where the previous one stopped. Returns "pending"
+ * when it yielded at `rt.deadline` (Upstash Workflow runs the next chunk), otherwise "done".
+ * Used by the generate-asset workflow and by the inline fallback.
  */
-export async function runGenerationJob(jobId: string, rt: PipelineRuntime = inlineRuntime): Promise<void> {
+export async function runGenerationJob(jobId: string, rt: PipelineRuntime = inlineRuntime): Promise<"done" | "pending"> {
   const db = supabaseAdmin();
   const { data: job } = await db.from("jobs").select("*").eq("id", jobId).maybeSingle();
   if (!job) throw new Error(`job ${jobId} not found`);
-  if (TERMINAL.has(job.status)) return;
+  if (TERMINAL.has(job.status)) {
+    // Cancelled while waiting between workflow steps: nothing else will release the reservation.
+    if (job.status === "cancelled") await releaseReservation(jobId);
+    return "done";
+  }
 
   const { data: workspace } = await db.from("workspaces").select("*").eq("id", job.workspace_id).single();
   const { data: project } = await db.from("projects").select("*").eq("id", job.project_id ?? "").maybeSingle();
   if (!workspace || !project) {
     await failJob(job, "invalid_state", "Workspace or project no longer exists");
-    return;
+    return "done";
   }
 
   // The asset_type enum still carries the retired `image` / `sprite_animation` values so that
   // legacy assets stay readable (SPEC §9.0). No pipeline can run for them any more.
   if (!(ASSET_TYPES as readonly string[]).includes(job.type)) {
     await failJob(job, "pipeline_removed", "This generator is no longer available");
-    return;
+    return "done";
   }
   const jobType = job.type as AssetType;
 
@@ -65,51 +72,61 @@ export async function runGenerationJob(jobId: string, rt: PipelineRuntime = inli
     if (!data || data.status === "cancelled") throw new JobFailure("cancelled", "Cancelled by user");
   };
 
+  let providerCalls = (job.provider_calls ?? {}) as unknown as Record<string, ProviderCallState>;
+  let callIndex = 0;
+
   try {
     const input = parseJobInput(jobType, job.input);
     const styleGuide: StyleGuide = styleGuideSchema.parse(project.is_scratch ? {} : project.style_guide ?? {});
-
-    // 3. moderation ---------------------------------------------------------
-    await update({ status: "moderating", started_at: job.started_at ?? new Date().toISOString(), progress: 2 });
     const text = moderationTextFor(jobType, input);
-    const mod = await moderatePrompt(text);
-    await update({ moderation_model: mod.model, moderation_prompt_version: MODERATION_PROMPT_VERSION });
-    if (mod.result.verdict === "block") {
-      await rejectJob(job, mod.result.category ?? "other", mod.result.reason, text, mod.model);
-      return;
+
+    // 3. moderation (skipped on resume — a blocked prompt ends the job, so a set model means "allowed")
+    if (!job.moderation_model) {
+      await update({ status: "moderating", started_at: job.started_at ?? new Date().toISOString(), progress: 2 });
+      const mod = await moderatePrompt(text);
+      await update({ moderation_model: mod.model, moderation_prompt_version: MODERATION_PROMPT_VERSION });
+      if (mod.result.verdict === "block") {
+        await rejectJob(job, mod.result.category ?? "other", mod.result.reason, text, mod.model);
+        return "done";
+      }
     }
 
-    // 4. translation --------------------------------------------------------
+    // 4. translation (skipped on resume) ------------------------------------
     await assertActive();
-    await update({ status: "translating", progress: 5 });
-    // The fal endpoint + the provider params the translator LLM chooses (SPEC §9.7).
-    const model = falModelFor(jobType, input);
-    const translated = await translatePrompt({
-      asset_type: jobType,
-      target_model: model.endpoint,
-      user_prompt: text,
-      project_style_guide: styleGuide,
-      params: input as unknown as Record<string, unknown>,
-      mode: jobType === "audio_voice" ? "params_only" : "full",
-      model_params_spec: llmParamsForTranslator(model),
-      translator_notes: model.translatorNotes,
-    });
-    await update({
-      translated_prompt: translated.output as never,
-      translator_model: translated.model,
-      translator_prompt_version: TRANSLATOR_PROMPT_VERSION,
-    });
+    let translatedOutput = job.translated_prompt as TranslatorOutput | null;
+    const resumed = translatedOutput !== null;
+    if (!translatedOutput) {
+      await update({ status: "translating", progress: 5 });
+      // The fal endpoint + the provider params the translator LLM chooses (SPEC §9.7).
+      const model = falModelFor(jobType, input);
+      const translated = await translatePrompt({
+        asset_type: jobType,
+        target_model: model.endpoint,
+        user_prompt: text,
+        project_style_guide: styleGuide,
+        params: input as unknown as Record<string, unknown>,
+        mode: jobType === "audio_voice" ? "params_only" : "full",
+        model_params_spec: llmParamsForTranslator(model),
+        translator_notes: model.translatorNotes,
+      });
+      await update({
+        translated_prompt: translated.output as never,
+        translator_model: translated.model,
+        translator_prompt_version: TRANSLATOR_PROMPT_VERSION,
+      });
+      translatedOutput = translated.output;
+    }
 
     // 5–7. generate + post-process + upload ----------------------------------
     await assertActive();
-    await update({ status: "generating", progress: 8 });
+    if (!resumed) await update({ status: "generating", progress: 8 });
     const ctx: PipelineContext<JobInput> = {
       job,
       input,
       project,
       styleGuide,
       workspace,
-      translated: translated.output,
+      translated: translatedOutput,
       rt,
       setProgress: async (p) => {
         await update({ progress: Math.max(0, Math.min(99, Math.round(p))) });
@@ -117,6 +134,14 @@ export async function runGenerationJob(jobId: string, rt: PipelineRuntime = inli
       assertActive,
       setProviderJob: async (provider, model, providerJobId) => {
         await update({ provider, provider_model: model, provider_job_id: providerJobId });
+      },
+      providerCalls: {
+        nextKey: (model) => `${callIndex++}:${model}`,
+        get: (key) => providerCalls[key],
+        save: async (key, state) => {
+          providerCalls = { ...providerCalls, [key]: state };
+          await update({ provider_calls: providerCalls as never });
+        },
       },
     };
 
@@ -150,23 +175,29 @@ export async function runGenerationJob(jobId: string, rt: PipelineRuntime = inli
       provider_cost_usd: result.providerCostUsd,
       credits_charged: charged,
       finished_at: new Date().toISOString(),
+      provider_calls: {},
     });
     rt.log("job completed", { jobId, assets: assetIds.length, charged });
     await notifyCompleted(job, assetIds[0], result.assets[0]?.name);
+    return "done";
   } catch (e) {
+    if (e instanceof PipelineYield) {
+      rt.log("yielded, provider still working", { jobId });
+      return "pending";
+    }
     if (e instanceof JobFailure && e.code === "cancelled") {
       await releaseReservation(jobId);
-      await update({ status: "cancelled", finished_at: new Date().toISOString() });
-      return;
+      await update({ status: "cancelled", finished_at: new Date().toISOString(), provider_calls: {} });
+      return "done";
     }
     if (e instanceof ProviderError && e.code === "provider_policy") {
       await failJob(job, "provider_policy", "The provider rejected this request under its content policy. Credits were not charged.");
       await recordViolation(job.user_id, job, "provider_policy", "provider_policy", e.message, text_of(job), job.provider ?? "provider");
-      return;
+      return "done";
     }
     if (e instanceof TranslationDroppedInfoError) {
       await failJob(job, "translation_incomplete", `We could not translate part of your request faithfully (${e.dropped.join("; ")}). Please rephrase.`);
-      return;
+      return "done";
     }
     const code = e instanceof JobFailure ? e.code : e instanceof ProviderError ? e.code : "internal_error";
     const message = e instanceof Error ? e.message : String(e);
@@ -174,6 +205,7 @@ export async function runGenerationJob(jobId: string, rt: PipelineRuntime = inli
     await failJob(job, code, env.IS_DEV ? message : friendly(code));
     // JobFailure = expected, user-facing outcome (timeout, unriggable input); everything else is a bug or a provider outage
     if (!(e instanceof JobFailure)) await reportError(e, { where: `pipeline ${job.type}`, userId: job.user_id });
+    return "done";
   }
 }
 
@@ -201,8 +233,15 @@ async function failJob(job: JobRow, code: string, message: string) {
   await releaseReservation(job.id);
   await supabaseAdmin()
     .from("jobs")
-    .update({ status: "failed", error_code: code, error_message: message.slice(0, 500), finished_at: new Date().toISOString() })
+    .update({ status: "failed", error_code: code, error_message: message.slice(0, 500), finished_at: new Date().toISOString(), provider_calls: {} })
     .eq("id", job.id);
+}
+
+/** Fails a job that is still running — used when the queue gives up on it (retries exhausted, too many chunks). */
+export async function failJobById(jobId: string, code: string, message: string) {
+  const { data: job } = await supabaseAdmin().from("jobs").select("*").eq("id", jobId).maybeSingle();
+  if (!job || TERMINAL.has(job.status)) return;
+  await failJob(job, code, message);
 }
 
 async function rejectJob(job: JobRow, category: string, reason: string | null, text: string, model: string) {

@@ -4,8 +4,24 @@
     {
       "name": "veyraflow-dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev", "-p", "3000"],
+      "runtimeArgs": [
+        "node_modules/next/dist/bin/next",
+        "dev",
+        "-p",
+        "3000"
+      ],
       "port": 3000
+    },
+    {
+      "name": "qstash-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "@upstash/qstash-cli@latest",
+        "dev",
+        "-port",
+        "8080"
+      ],
+      "port": 8080
     }
   ]
 }

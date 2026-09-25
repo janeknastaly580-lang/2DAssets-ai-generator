@@ -1,6 +1,6 @@
 # Veyraflow — SPEC.md
 
-> Specyfikacja produktu i systemu. Ten dokument jest **jedynym źródłem prawdy** o projekcie: na jego podstawie można odtworzyć całą aplikację (kod, bazę danych, konfigurację Supabase, Stripe, Resend, Cloudflare R2, Inngest, Modal, Vercel i dostawców AI) w identycznym kształcie.
+> Specyfikacja produktu i systemu. Ten dokument jest **jedynym źródłem prawdy** o projekcie: na jego podstawie można odtworzyć całą aplikację (kod, bazę danych, konfigurację Supabase, Stripe, Resend, Cloudflare R2, Upstash, Modal, Vercel i dostawców AI) w identycznym kształcie.
 >
 > Stan dokumentu: **wersja 0.6 (2026-09-24) — aplikacja zdeployowana na Vercelu jako projekt `asset-generator` (https://asset-generator-tawny.vercel.app, region `fra1`, auto-deploy z GitHuba `janeknastaly580-lang/2DAssets-ai-generator`), jeszcze bez zmiennych środowiskowych (§0.1, §0.3 pkt 13, §23.3).** Wcześniej (0.5, 2026-09-23): **wszystkie modele generujące podpięte przez fal.ai (`FAL_KEY`, §9.7): Rodin Gen-2.5 i TRELLIS (3D), ElevenLabs Sound Effects v2 (SFX), Lyria 3 Pro (muzyka), ElevenLabs TTS Turbo v2.5 (głos); Meshy i bezpośrednie API ElevenLabs usunięte; parametry modeli spoza UI ustawia LLM tłumacza (`model_params`, §8.3), który nie jest jeszcze podłączony.** Wcześniej (0.4, 2026-09-22): kod MVP napisany, schemat Supabase wdrożony, Resend przełączony na domenę produkcyjną `veyraflow.eu` (nadawca `website@veyraflow.eu`); **generatory Image i Animacje 2D usunięte z produktu (§9.0)**, 3D dostało selektor Engine i do 3 zdjęć wejściowych, TTS bez katalogu głosów, usuwanie konta natychmiastowe; aplikacja działa na `localhost:3000`**. Sekcja 0 opisuje dokładny stan wdrożenia i czynności ręczne. Każda zmiana w projekcie (lokalnie lub w dowolnej usłudze zewnętrznej) musi być odzwierciedlona tutaj.
 >
@@ -24,7 +24,7 @@
 11. [Kredyty, plany, Stripe](#11-kredyty-plany-stripe)
 12. [Moderacja i bany](#12-moderacja-i-bany)
 13. [Przechowywanie plików (Cloudflare R2) i retencja](#13-przechowywanie-plików-cloudflare-r2-i-retencja)
-14. [Kolejka zadań (Inngest) i worker (Modal)](#14-kolejka-zadań-inngest-i-worker-modal)
+14. [Kolejka zadań (Upstash Workflow) i worker (Modal)](#14-kolejka-zadań-upstash-workflow-i-worker-modal)
 15. [Model danych (Supabase Postgres)](#15-model-danych-supabase-postgres)
 16. [API (Route Handlers) i webhooki](#16-api-route-handlers-i-webhooki)
 17. [Interfejs użytkownika — strony i komponenty](#17-interfejs-użytkownika--strony-i-komponenty)
@@ -57,8 +57,8 @@ Sekcja opisuje **faktyczny stan** projektu po pierwszej implementacji. Reszta do
 | **Cloudflare R2** | **Włączone** na koncie (2026-09-22). Istnieje **jeden bucket: `plikiveyraflow1`** (location `EEUR`, storage class Standard, jurisdiction default, utworzony 2026-09-22 przez właściciela) — to on jest bucketem aplikacji, wpisany jako `R2_BUCKET` w `.env` (odstępstwo od pierwotnych nazw `veyraflow-assets`/`veyraflow-assets-dev`, §13). **Brakuje tokenu S3**: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` w `.env.local` są puste, bo Cloudflare pokazuje sekret tylko raz w dashboardzie i nie da się go utworzyć przez API MCP — **czynność ręczna właściciela (§0.3 pkt 7)**. Dopóki są puste, storage działa na **sterowniku lokalnym** (`.data/storage/`, §13); po wklejeniu trzech wartości `storage()` przełącza się na R2 bez zmian w kodzie. Weryfikacja: `pnpm r2:check` (§23.2). Do zrobienia ręcznie także CORS (§23.2 pkt 3) i lifecycle dla `downloads/` (§23.2 pkt 4) |
 | **Stripe** | brak kluczy — UI billingu pokazuje „Billing is not configured”; kod checkout/portal/webhooków gotowy (§11.6) |
 | **Dostawcy AI** | **2026-09-23: `FAL_KEY` wpisany do `.env.local`, `MOCK_PROVIDERS=false` w `.env`** — wszystkie 4 generatory (3D, SFX, muzyka, głos) wołają prawdziwe modele fal.ai (§9.7). `OPENAI_API_KEY` pusty → **LLM tłumacza jeszcze niepodłączony**: tłumacz = identyczność (+ style guide), moderacja = lista słów, `model_params` puste (parametry spoza UI = domyślne wartości dostawcy). Klucz fal zweryfikowany (uwierzytelnienie działa), ale **konto fal.ai ma wyczerpane saldo** (`403 User is locked. Reason: Exhausted balance`) — prawdziwe generacje ruszą po doładowaniu (§0.3 pkt 9). Meshy i bezpośrednie ElevenLabs usunięte z projektu (kod, env, webhook) |
-| **Inngest / Modal** | brak kluczy — kolejka działa **inline** w procesie Next.js (`lib/queue/dispatch.ts`, §14.1); worker Modal ma kod w `worker/`, nie jest wdrożony |
-| **Vercel** | **2026-09-24: projekt `asset-generator`** (ID `prj_H6G7LFOahjC7fjpNghC1jdOxdzRA`; nazwa „Asset generator” odrzucona przez Vercel — nazwy projektów muszą być małymi literami bez spacji), konto/team `janeknastaly580-langs-projects` (`team_5ghyU9jSaokV9cFz0Ug9VIDZ`), plan **Hobby**. Podpięty pod repo GitHub **`janeknastaly580-lang/2DAssets-ai-generator`** — push na `main` = deploy Production. Framework Next.js, Node **24.x** (`engines.node: ">=22"` → Vercel wybiera najnowszą pasującą wersję), **Fluid compute ON**, region funkcji **`fra1`** (ustawienie projektu + `vercel.json`), `maxDuration = 300` w `/api/inngest`, `/api/jobs`, `/api/downloads`. Domena produkcyjna: **`https://asset-generator-tawny.vercel.app`**. Deployment Protection: domyślne *Standard* (`all_except_custom_domains`). **Zmienne środowiskowe celowo NIE są wpisane (decyzja właściciela 2026-09-24)** — build przechodzi bez nich, ale w runtime: strony zwracają 500 `MIDDLEWARE_INVOCATION_FAILED` (middleware tworzy klienta Supabase z `NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY`), endpointy `/api/*` wymagające bazy zwracają 500 `internal_error`, POST-y odrzucane jako `bad_origin` (`APP_URL` domyślnie `localhost`), `/api/inngest` → 401. Dokończenie: §0.3 pkt 13. Pliki `.env`, `.env.local`, `.env.example` pozostają w `.gitignore` i nie ma ich w repozytorium |
+| **Upstash Workflow / Modal** | **2026-09-25: kolejka przeniesiona z Inngest na Upstash Workflow** (region EU `eu-central-1`, §14.1) — kod gotowy i zweryfikowany na lokalnym emulatorze; konto Upstash istnieje (QStash user w `eu-central-1` i `us-east-1`), **brak `QSTASH_*` na Vercelu i brak harmonogramów** (§23.6). Bez `QSTASH_TOKEN` kolejka działa **inline** w procesie Next.js (`lib/queue/dispatch.ts`). Migracja `20260925000014_upstash_workflow` zaaplikowana. Worker Modal ma kod w `worker/`, nie jest wdrożony |
+| **Vercel** | **2026-09-24: projekt `asset-generator`** (ID `prj_H6G7LFOahjC7fjpNghC1jdOxdzRA`; nazwa „Asset generator” odrzucona przez Vercel — nazwy projektów muszą być małymi literami bez spacji), konto/team `janeknastaly580-langs-projects` (`team_5ghyU9jSaokV9cFz0Ug9VIDZ`), plan **Hobby**. Podpięty pod repo GitHub **`janeknastaly580-lang/2DAssets-ai-generator`** — push na `main` = deploy Production. Framework Next.js, Node **24.x** (`engines.node: ">=22"` → Vercel wybiera najnowszą pasującą wersję), **Fluid compute ON**, region funkcji **`fra1`** (ustawienie projektu + `vercel.json`), `maxDuration = 300` w `/api/workflow/[name]` (do 2026-09-25 `/api/inngest`), `/api/jobs`, `/api/downloads`. Domena produkcyjna: **`https://asset-generator-tawny.vercel.app`**. Deployment Protection: domyślne *Standard* (`all_except_custom_domains`). **Zmienne środowiskowe celowo NIE są wpisane (decyzja właściciela 2026-09-24)** — build przechodzi bez nich, ale w runtime: strony zwracają 500 `MIDDLEWARE_INVOCATION_FAILED` (middleware tworzy klienta Supabase z `NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY`), endpointy `/api/*` wymagające bazy zwracają 500 `internal_error`, POST-y odrzucane jako `bad_origin` (`APP_URL` domyślnie `localhost`), `/api/workflow/*` → 503 `queue_disabled` (brak `QSTASH_TOKEN`). Dokończenie: §0.3 pkt 13. Pliki `.env`, `.env.local`, `.env.example` pozostają w `.gitignore` i nie ma ich w repozytorium |
 | **Google Analytics 4** | **2026-09-24: kod gotowy** (§21.6) — gtag.js ładowany dopiero po zgodzie „Analytics” z banera cookies, ręczne `page_view` z oczyszczonym URL-em, zdarzenia `login`, `sign_up`, `generate_asset`, `begin_checkout`, `download_asset`, `share`; CSP rozszerzany o domeny Google tylko przy ustawionym ID. **Brak `NEXT_PUBLIC_GA_MEASUREMENT_ID`** (właściwość GA4 jeszcze nie istnieje) → wszystko jest no-opem. Uruchomienie: §0.3 pkt 14, §23.9 |
 | **Raportowanie błędów** | **2026-09-24: kod gotowy** — Google Cloud Error Reporting zamiast Firebase Crashlytics (Crashlytics nie ma SDK dla weba, §25.4): błędy serwera (`onRequestError`, 500-ki z `handler()`, nieudane joby, kolejka, ZIP, webhook Stripe) i przeglądarki (`/api/client-errors`). **Brak `GCP_PROJECT_ID` / `GCP_ERROR_REPORTING_API_KEY`** → no-op. Uruchomienie: §0.3 pkt 15, §23.10 |
 | **Dokumenty prawne** | placeholdery w `docs/legal/*.md` (status `draft`), renderowane na `/terms`, `/privacy`, `/cookies`, `/ai-disclosure`, `/impressum` |
@@ -67,8 +67,8 @@ Sekcja opisuje **faktyczny stan** projektu po pierwszej implementacji. Reszta do
 
 Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w **Next.js** (Route Handlers / Server Actions), nie w Supabase Edge Functions. Dlatego:
 
-- **`.env`** (w `.gitignore` od 2026-09-23 — nie trafia do repozytorium, choć zawiera tylko wartości jawne) — **wyłącznie wartości jawne**: `NEXT_PUBLIC_*` (URL aplikacji, URL Supabase, klucz publishable, `NEXT_PUBLIC_GA_MEASUREMENT_ID` — ID pomiaru GA4 nie jest sekretem, i tak trafia do przeglądarki) oraz serwerowe nie-sekrety (`APP_URL`, `TOS_VERSION`, `SUPPORT_EMAIL`, `TRIAL_CREDITS`, `MOCK_PROVIDERS`, `INNGEST_DEV`, `PROMPT_TRANSLATOR_MODEL`, `MODERATION_MODEL`, `R2_BUCKET`, `R2_ENDPOINT`, `EMAIL_FROM`, `STRIPE_PRICE_*`, `MODAL_WORKER_URL`, `GCP_PROJECT_ID`). Na Vercelu to zwykłe zmienne środowiskowe.
-- **`.env.local`** (gitignore) — **wyłącznie sekrety**: `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `AUTH_CODE_PEPPER`, klucze AI, `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `INNGEST_*`, `MODAL_WORKER_TOKEN`, `WORKER_WEBHOOK_SECRET`, `FAL_WEBHOOK_SECRET`, `GCP_ERROR_REPORTING_API_KEY` (§25.4; lokalny plik ma jeszcze nieużywaną pozostałość `SENTRY_DSN` — Sentry nie jest używany). Klucze AI to tylko `OPENAI_API_KEY` i `FAL_KEY` (`MESHY_API_KEY`, `ELEVENLABS_API_KEY`, `MESHY_WEBHOOK_SECRET` usunięte 2026-09-23). Plik istnieje z wygenerowanymi `AUTH_CODE_PEPPER`, `WORKER_WEBHOOK_SECRET`, `MODAL_WORKER_TOKEN` i wpisanym `RESEND_API_KEY`. Na Vercelu każda z tych zmiennych ma być oznaczona **„Sensitive”** (Vercel szyfruje i nigdy nie pokazuje wartości). `SUPABASE_SERVICE_ROLE_KEY` wklejony przez właściciela (2026-09-20). Next.js łączy oba pliki; `.env.local` nadpisuje `.env`.
+- **`.env`** (w `.gitignore` od 2026-09-23 — nie trafia do repozytorium, choć zawiera tylko wartości jawne) — **wyłącznie wartości jawne**: `NEXT_PUBLIC_*` (URL aplikacji, URL Supabase, klucz publishable, `NEXT_PUBLIC_GA_MEASUREMENT_ID` — ID pomiaru GA4 nie jest sekretem, i tak trafia do przeglądarki) oraz serwerowe nie-sekrety (`APP_URL`, `TOS_VERSION`, `SUPPORT_EMAIL`, `TRIAL_CREDITS`, `MOCK_PROVIDERS`, `PROMPT_TRANSLATOR_MODEL`, `MODERATION_MODEL`, `R2_BUCKET`, `R2_ENDPOINT`, `EMAIL_FROM`, `STRIPE_PRICE_*`, `MODAL_WORKER_URL`, `GCP_PROJECT_ID`, `QSTASH_URL`, `UPSTASH_WORKFLOW_URL`). Na Vercelu to zwykłe zmienne środowiskowe.
+- **`.env.local`** (gitignore) — **wyłącznie sekrety**: `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `AUTH_CODE_PEPPER`, klucze AI, `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, `MODAL_WORKER_TOKEN`, `WORKER_WEBHOOK_SECRET`, `FAL_WEBHOOK_SECRET`, `GCP_ERROR_REPORTING_API_KEY` (§25.4; Sentry nie jest używany — `SENTRY_DSN` usunięty z `.env.local` 2026-09-25, razem z kluczami Inngest; w ich miejsce pusty `QSTASH_TOKEN` do uzupełnienia wg §23.6). Klucze AI to tylko `OPENAI_API_KEY` i `FAL_KEY` (`MESHY_API_KEY`, `ELEVENLABS_API_KEY`, `MESHY_WEBHOOK_SECRET` usunięte 2026-09-23). Plik istnieje z wygenerowanymi `AUTH_CODE_PEPPER`, `WORKER_WEBHOOK_SECRET`, `MODAL_WORKER_TOKEN` i wpisanym `RESEND_API_KEY`. Na Vercelu każda z tych zmiennych ma być oznaczona **„Sensitive”** (Vercel szyfruje i nigdy nie pokazuje wartości). `SUPABASE_SERVICE_ROLE_KEY` wklejony przez właściciela (2026-09-20). Next.js łączy oba pliki; `.env.local` nadpisuje `.env`.
 - Żadna z powyższych zmiennych serwerowych nie trafia do bundla przeglądarki — tam idą tylko `NEXT_PUBLIC_*`; pilnuje tego `pnpm check:public-env` (§22).
 - **Supabase Secrets (Edge Functions)** — **nie są potrzebne**; projekt nie używa Edge Functions. Jeśli w przyszłości część logiki trafi do Edge Functions, do `supabase secrets set` trafią te same zmienne serwerowe z §24.
 - **Vercel** (projekt `asset-generator`, §0.1) — wszystkie zmienne z §24, sekrety oznaczone „Sensitive”. **Stan 2026-09-24: żadna zmienna nie jest wpisana** (decyzja właściciela); instrukcja — §0.3 pkt 13.
@@ -88,7 +88,7 @@ Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w
    4. CORS bucketu i lifecycle `downloads/` wg §23.2 pkt 3–4 (też w dashboardzie).
 8. **Stripe** (§23.4): produkty/ceny, Stripe Tax, portal, webhook → klucze i `STRIPE_PRICE_*`. Lokalnie: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`.
 9. **Dostawcy AI** (§23.8): ~~`FAL_KEY` + `MOCK_PROVIDERS=false`~~ — zrobione 2026-09-23. **Pozostało: doładować saldo fal.ai** (konto zablokowane: „Exhausted balance”): zalogować się na https://fal.ai kontem, z którego pochodzi `FAL_KEY` → **Dashboard → Billing** (https://fal.ai/dashboard/billing) → **Add credits / Top up** (pełny test wszystkich modeli ≈ 1 USD; Rodin 0,40 USD za model) — klucz się nie zmienia. `OPENAI_API_KEY` dopiero przy podłączaniu LLM tłumacza (osobne zadanie, §8.3).
-10. **Inngest** (§23.6) i **Modal** (§23.7) — opcjonalne na localhost; bez nich działa tryb inline.
+10. **Upstash** (§23.6) — klucze QStash z regionu EU na Vercelu + `pnpm upstash:schedules https://<domena>`; na localhost opcjonalne (bez nich tryb inline, emulator: `pnpm qstash:dev`). **Modal** (§23.7) — opcjonalny.
 11. ~~**Resend**: dodać i zweryfikować domenę `veyraflow.eu`~~ — zrobione 2026-09-22 (domena `verified`, `EMAIL_FROM="Veyraflow <website@veyraflow.eu>"`). Klucz API ograniczony do `veyraflow.eu` (`veyraflow-app-sending-eu`) utworzony i wpisany do `.env.local` 2026-09-22; wysyłka zweryfikowana. Pozostało opcjonalnie: usunąć stary klucz `veyraflow-app-sending`.
 12. Uzupełnić placeholdery z §27 (dokumenty prawne, ceny pakietów, Impressum).
 13. **Vercel — dokończenie wdrożenia** (projekt `asset-generator` istnieje i jest zdeployowany, §0.1; zmienne celowo niewpisane):
@@ -98,14 +98,15 @@ Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w
     4. **Deployments** → ostatni deployment → **⋯ → Redeploy** (zmienne `NEXT_PUBLIC_*` są wkompilowywane w build, więc sam zapis zmiennych nie wystarczy).
     5. Supabase → **Authentication → URL Configuration**: Site URL = produkcyjny `APP_URL` (Redirect URLs niepotrzebne — brak OAuth, pkt 3).
     6. R2 CORS (§23.2 pkt 3): dodać origin `https://asset-generator-tawny.vercel.app`.
-    7. Plan Hobby jest wyłącznie do użytku niekomercyjnego — przed włączeniem płatności Stripe przejść na **Pro**. Na Hobby kolejka inline (bez Inngest) ma limit 300 s na job; dłuższe generacje (np. Rodin) wymagają Inngest (§23.6).
+    7. Kolejka: `QSTASH_URL`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` z konsoli Upstash (region EU) — potem `pnpm upstash:schedules https://<domena>` (§23.6).
+    8. Plan Hobby jest wyłącznie do użytku niekomercyjnego — przed włączeniem płatności Stripe przejść na **Pro**. Kolejka inline (bez Upstash) ma limit 300 s na całą generację; dłuższe generacje (np. Rodin) wymagają Upstash, który dzieli pipeline na kroki ≤ 180 s (§14.1, §23.6).
 14. **Google Analytics 4** — utworzyć właściwość i strumień sieciowy, ustawić strumień (wyłączone „Page changes based on browser history events”, „Outbound clicks” i „File downloads”, redakcja danych), wpisać `NEXT_PUBLIC_GA_MEASUREMENT_ID` na Vercelu i zrobić redeploy — pełna instrukcja w §23.9.
 15. **Google Cloud Error Reporting** (zamiast Crashlytics) — projekt Google Cloud, włączone Error Reporting API, klucz API ograniczony do tego API, `GCP_PROJECT_ID` + `GCP_ERROR_REPORTING_API_KEY` na Vercelu, redeploy, powiadomienia e-mail — pełna instrukcja w §23.10.
 
 ### 0.4 Odstępstwa od pierwotnego projektu (uzasadnione lokalnym uruchomieniem)
 
 - **Storage lokalny** (`lib/storage/local.ts`): gdy brak `R2_*`, pliki lądują w `.data/storage/<key>`, a „presigned URL” to podpisane HMAC (`AUTH_CODE_PEPPER`) linki `/api/files?key&exp&sig` z tym samym TTL co w R2. Semantyka kluczy (§13) niezmieniona.
-- **Kolejka inline** (`lib/queue/dispatch.ts`): gdy brak `INNGEST_EVENT_KEY` (i nie ustawiono `INNGEST_DEV=1`), `POST /api/jobs` uruchamia pipeline po wysłaniu odpowiedzi (`after()`), z zachowaniem limitu współbieżności planu i kolejności FIFO per workspace. Funkcje Inngest (§14.1) używają tego samego kodu pipeline'u (`lib/pipelines/run.ts`).
+- **Kolejka inline** (`lib/queue/dispatch.ts`): gdy brak `QSTASH_TOKEN` (albo URL workflow to `localhost`, a `QSTASH_URL` wskazuje chmurę), `POST /api/jobs` uruchamia pipeline po wysłaniu odpowiedzi (`after()`), z zachowaniem limitu współbieżności planu i kolejności FIFO per workspace. Workflow Upstash (§14.1) używają tego samego kodu pipeline'u (`lib/pipelines/run.ts`).
 - **Mock providerów** (`MOCK_PROVIDERS=true` lub brak zarówno `FAL_KEY`, jak i `OPENAI_API_KEY`): pipeline'y zwracają lokalnie wygenerowane pliki (sześcian GLB, syntetyczny WAV). Mock działa **per etap**: generacja jest mockowana, gdy brak `FAL_KEY`; tłumacz i moderacja — gdy brak `OPENAI_API_KEY` (tłumacz = identyczność + style guide, `model_params = {}`; moderacja = lista słów). Wszystko poza samym wywołaniem dostawcy (moderacja→tłumaczenie→kredyty→post-processing→upload→assety) działa jak w produkcji.
 - **OGG/MP3 i LUFS**: bez workera ffmpeg SFX ma WAV (surowe PCM z fal owinięte w WAV w procesie, §9.4), muzyka i głos — MP3 z fal, mock — WAV; OGG/MP3/WAV komplet + `loudnorm` powstają, gdy skonfigurowany jest worker (`/audio-process`).
 - **Konwersje 3D**: bez workera Blender są GLB, GLTF(+bin) i (w mocku) OBJ/MTL; FBX Unity/Unreal wymaga workera.
@@ -148,7 +149,7 @@ Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w
 | Baza danych + Auth | Supabase (Postgres + Supabase Auth) — projekt **`2DAssets`** (`lhwvkhdsoozvsftwhcif`, eu-central-1, PG 17), był pusty, dedykowany dla Veyraflow |
 | Pliki | Cloudflare R2 (S3-compatible), bucket prywatny, presigned URL; **lokalnie (do czasu włączenia R2) sterownik dyskowy `.data/storage` z podpisanymi linkami** (§0.4, §13) |
 | Hosting | Vercel (Preview + Production) |
-| Kolejka / długie zadania | Inngest (produkcja); **fallback inline** w procesie Next.js, gdy brak kluczy Inngest (§14.1) |
+| Kolejka / długie zadania | **Upstash Workflow** (QStash, region EU; produkcja); **fallback inline** w procesie Next.js, gdy brak `QSTASH_TOKEN` (§14.1). Do 2026-09-25 Inngest — zastąpiony, bo DPA daje tylko na płatnych planach |
 | Ciężka obróbka (rig 2D, Blender, ffmpeg) | Worker Python na Modal (HTTPS, token) |
 | Płatności | Stripe (Checkout, Customer Portal, Webhooks, Stripe Tax) |
 | E-maile | Resend (7 szablonów + 2 e-maile renderowane inline w kodzie; nadawca `Veyraflow <website@veyraflow.eu>`, domena `veyraflow.eu` zweryfikowana) |
@@ -179,13 +180,13 @@ Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w
 │  Vercel — Next.js (server)                                                    │
 │  - Route Handlers /api/*  (walidacja zod, autoryzacja, RLS przez user token)  │
 │  - Server Actions (formularze)                                                │
-│  - Inngest functions (/api/inngest) — kroki pipeline'u generacji             │
+│  - Upstash Workflow (/api/workflow/<name>) — kroki pipeline'u generacji      │
 │  - Lekki post-processing: sharp (PNG/WebP, cięcie, atlas), zip streaming      │
 │  - Wszystkie klucze dostawców AI tylko tutaj (env server-only)               │
 └──┬──────────┬──────────┬──────────┬───────────┬───────────┬──────────────────┘
    │          │          │          │           │           │
    ▼          ▼          ▼          ▼           ▼           ▼
-Supabase   Cloudflare  Inngest    Stripe     Resend     Dostawcy AI
+Supabase   Cloudflare  Upstash    Stripe     Resend     Dostawcy AI
 Postgres   R2 (pliki)  (kolejka)  (płatn.)   (e-mail)   OpenAI (tłumacz + moderacja)
 + Auth                                                    fal.ai (Rodin Gen-2.5, TRELLIS,
 + Realtime                                                ElevenLabs SFX v2 / TTS Turbo v2.5, Lyria 3 Pro)
@@ -201,7 +202,7 @@ Zasady przepływu:
 
 - Przeglądarka **nigdy** nie otrzymuje URL-i dostawców ani kluczy. Jedynymi zewnętrznymi hostami widocznymi w przeglądarce są: domena aplikacji, Supabase (auth/realtime/db przez anon key + RLS), Stripe Checkout/Portal (redirect), Cloudflare R2 (tylko presigned URL do pobrania/uploadu, krótkotrwałe).
 - Zapisy do tabel finansowych (`credit_ledger`, `credit_balances`, `jobs`, `assets`) wykonuje wyłącznie backend z **service role** (nigdy klient).
-- Długie zadania (generacje) idą przez Inngest; UI dostaje status przez Supabase Realtime na tabeli `jobs`.
+- Długie zadania (generacje) idą przez Upstash Workflow; UI dostaje status przez Supabase Realtime na tabeli `jobs`.
 
 ---
 
@@ -217,7 +218,7 @@ Zasady przepływu:
 | Formularze / walidacja | zod 4 (te same schematy w `lib/validation/*` na kliencie i serwerze); formularze generatora to kontrolowane komponenty React (react-hook-form zainstalowany, nieużywany w MVP) |
 | Stan serwera | TanStack Query (client) + RSC |
 | Supabase | `@supabase/supabase-js`, `@supabase/ssr` (cookies), Supabase CLI (migracje) |
-| Kolejka | `inngest` SDK v3 (`inngest/next` serve) |
+| Kolejka | `@upstash/workflow` 1.3 (`serveMany` z `@upstash/workflow/nextjs`) + `@upstash/qstash` 2.11 (Receiver, harmonogramy) |
 | Modele AI | `@fal-ai/client` 1.10 (tylko serwer: `queue.submit/status/result`, `storage.upload`) — instalacja `pnpm add @fal-ai/client` (dokumentacja fal podaje `npm install --save @fal-ai/client`; w projekcie zawsze pnpm) |
 | Płatności | `stripe` SDK |
 | E-mail | `resend` SDK (wysyłka szablonów po aliasie) |
@@ -259,7 +260,7 @@ Zasady przepływu:
 │   │                                   moderation/, audit/
 │   └── api/                         ← Route Handlers (§16): auth/*, workspaces/*, invites/*, projects/*, jobs/*, assets/*,
 │                                       downloads/*, uploads/*, files (lokalny storage), billing/*, share/*, s/[token],
-│                                       account, admin/*, webhooks/{stripe,fal,worker}, inngest, client-errors (§25.4)
+│                                       account, admin/*, webhooks/{stripe,fal,worker}, workflow/[name], client-errors (§25.4)
 ├── components/
 │   ├── ui/                          ← button.tsx, primitives.tsx (Input, Textarea, Label, Badge, Card, Table, Alert, Progress,
 │   │                                   Skeleton, Avatar…), overlays.tsx (Dialog, DropdownMenu, Tooltip, Select, Tabs, Switch,
@@ -298,16 +299,13 @@ Zasady przepływu:
 │   │                                   audio.ts (WAV, normalizacja, loop, waveform), enginePresets.ts (README), mockImage.ts
 │   ├── storage/                     ← index.ts (wybór sterownika), r2.ts, local.ts, keys.ts
 │   ├── email/resend.ts              ← wysyłka: szablony Resend po ID + 2 e-maile renderowane inline (§20.3)
-│   ├── queue/dispatch.ts            ← Inngest lub inline
+│   ├── queue/                       ← dispatch.ts (Upstash lub inline), workflows.ts (definicje), upstash.ts (klienci), names.ts (nazwy + harmonogramy)
 │   ├── client/                      ← api.ts (fetch + upload presign→PUT→complete), constants.ts, reportError.ts (błędy przeglądarki → /api/client-errors)
 │   └── validation/                  ← auth.ts, project.ts, jobs.ts, misc.ts (zod 4)
-├── inngest/
-│   ├── client.ts                    ← katalog eventów
-│   └── functions/                   ← generateAsset.ts, maintenance.ts (crony, e-mail, ZIP, eksport, relay webhooków), index.ts
 ├── supabase/
 │   ├── config.toml
 │   ├── migrations/                  ← 20260920000001…0011 (schemat §15 + granty), 20260922000012 (wycofane generatory),
-│   │                                   20260923000013_fal_models (cennik fal.ai) — wszystkie zaaplikowane w projekcie
+│   │                                   20260923000013_fal_models (cennik fal.ai), 20260925000014_upstash_workflow (`jobs.workflow_run_id`, `jobs.provider_calls`) — wszystkie zaaplikowane w projekcie
 │   └── seed.sql                     ← model_pricing, feature_flags
 ├── worker/                          ← Python (Modal)
 │   ├── modal_app.py                 ← endpointy: /rig-animate, /convert-3d, /render-thumbnail, /audio-process, /make-gif, /pixelize, /tasks/{id}
@@ -317,7 +315,7 @@ Zasady przepływu:
 ├── instrumentation.ts               ← Next.js onRequestError → Error Reporting (§25.4)
 ├── scripts/check-public-env.ts      ← test bezpieczeństwa env/bundla (§22)
 ├── scripts/check-r2.ts              ← round-trip PUT/HEAD/GET/presign/DELETE na R2 (§23.2)
-├── tests/                           ← postprocess.test.ts, validation.test.ts, email.test.ts, falModels.test.ts, analytics.test.ts, errorReporting.test.ts, accountDeletion.test.ts, stubs/
+├── tests/                           ← postprocess.test.ts, validation.test.ts, email.test.ts, falModels.test.ts, analytics.test.ts, errorReporting.test.ts, accountDeletion.test.ts, providerWait.test.ts, stubs/
 └── docs/legal/                      ← terms.md, privacy.md, cookies.md, ai-disclosure.md, impressum.md (placeholdery)
 ```
 
@@ -434,7 +432,7 @@ Konfiguracja Supabase Auth: „Confirm email” = **włączone** (niezweryfikowa
 
 ## 8. Uniwersalny pipeline generacji
 
-Każdy typ assetu przechodzi ten sam szkielet (funkcja Inngest `asset/generate.requested`):
+Każdy typ assetu przechodzi ten sam szkielet (workflow Upstash `generate-asset`, §14.1):
 
 ```
 [UI] prompt + parametry + projekt
@@ -471,7 +469,7 @@ UI pokazuje etykiety: „Queued”, „Checking prompt”, „Preparing”, „G
 
 ### 8.2 Współbieżność i limity
 
-- Limit współbieżności per workspace wg planu — brak planu/trial: 1, Pro: 2, Studio: 5. Implementacja: funkcja Inngest ma statyczny `concurrency: { key: event.data.workspace_id, limit: 5 }` i przed startem czeka (`step.sleep 30s`, max 60 min), dopóki liczba aktywnych jobów workspace'u ≥ limit planu; scheduler inline (§14.1) stosuje ten sam limit w pętli FIFO.
+- Limit współbieżności per workspace wg planu — brak planu/trial: 1, Pro: 2, Studio: 5. Implementacja: workflow `generate-asset` przed startem sprawdza slot (`context.run('slot-check-N')`) i czeka (`context.sleep 30 s`, max 120 razy = 60 min), dopóki liczba aktywnych jobów workspace'u ≥ limit planu; scheduler inline (§14.1) stosuje ten sam limit w pętli FIFO.
 - Limit zadań w kolejce per workspace: 20.
 - Timeout oczekiwania na dostawcę (`submitAndWait`): 3D 30 min (Rodin typowo 2–4 min, TRELLIS ~30 s wg statystyk fal), SFX 10 min na wariant, muzyka 15 min, głos 5 min na kwestię.
 - Anulowanie: użytkownik może anulować job w `queued`/`moderating`/`translating` (pełny zwrot) i w `generating` (zwrot, jeśli dostawca nie naliczył — w praktyce: zwrot kredytów przy anulowaniu tylko przed wysłaniem żądania do dostawcy; po wysłaniu anulowanie = przerwanie oczekiwania, kredyty pobrane).
@@ -805,7 +803,7 @@ Wyjście: `model_mesh` (GLB z teksturą), `timings`. Miniatura = zdjęcie wejśc
 
 ### 10.6 Pobieranie
 - Pojedynczy plik: `GET /api/assets/:id/download?file=:fileId` → presigned URL R2 (TTL 15 min, `Content-Disposition: attachment; filename="<slug>_<variant>.<ext>"`).
-- ZIP assetu / zaznaczonych assetów / całego projektu z wybranym presetem silnika: `POST /api/downloads` → job Inngest `download/zip.requested` → streamowany archiver na Vercel (≤ 200 MB łącznie) lub worker (większe) → plik ZIP w R2 (`downloads/…`, TTL 24 h, sprzątany) → link + powiadomienie w UI (toast + wpis w „Downloads”).
+- ZIP assetu / zaznaczonych assetów / całego projektu z wybranym presetem silnika: `POST /api/downloads` → workflow Upstash `build-download-zip` → streamowany archiver na Vercel (≤ 200 MB łącznie) lub worker (większe) → plik ZIP w R2 (`downloads/…`, TTL 24 h, sprzątany) → link + powiadomienie w UI (toast + wpis w „Downloads”).
 - Struktura ZIP projektu: `/<project-slug>/<asset-type>/<asset-slug>/<pliki>` + `MANIFEST.json` (lista assetów, licencja, informacja o generacji AI, wersja).
 
 ---
@@ -948,31 +946,36 @@ Wewnętrznie `credit_balances` trzyma trzy kubełki: `trial` (30 dni), `subscrip
 - Upload z przeglądarki (referencje, obrazy do image-to-3D, avatar): `POST /api/uploads/presign` (walidacja typu i rozmiaru → presigned PUT z `Content-Length` limit) → klient PUT → `POST /api/uploads/complete` (HEAD w R2, zapis metadanych, sprawdzenie magic bytes przez serwer po pobraniu nagłówka pliku).
 - CORS bucketu: `PUT, GET` z `APP_URL` (+ `*.vercel.app` dla preview).
 - **Quota**: `workspaces.storage_used_bytes` aktualizowane przy każdym zapisie/usunięciu (RPC); przekroczenie → generacja zablokowana z komunikatem, można zwolnić miejsce.
-- **Retencja** (`assets.expires_at` ustawiane przy tworzeniu i przeliczane przy zmianie planu): brak planu/trial → 30 dni od utworzenia; Pro/Studio → `null` dopóki subskrypcja aktywna; po `customer.subscription.deleted` → `now() + 90 dni` dla wszystkich assetów workspace'u. Funkcja Inngest `retention/cleanup` (cron codziennie 03:00 UTC): 7 dni przed wygaśnięciem e-mail (szablon `assets-expiring`), po terminie: soft delete (`deleted_at`) → po kolejnych 7 dniach usunięcie z R2 i rekordów.
+- **Retencja** (`assets.expires_at` ustawiane przy tworzeniu i przeliczane przy zmianie planu): brak planu/trial → 30 dni od utworzenia; Pro/Studio → `null` dopóki subskrypcja aktywna; po `customer.subscription.deleted` → `now() + 90 dni` dla wszystkich assetów workspace'u. Workflow Upstash `retention-cleanup` (harmonogram QStash codziennie 03:00 UTC, §14.1): 7 dni przed wygaśnięciem e-mail (szablon `assets-expiring`), po terminie: soft delete (`deleted_at`, asset trafia do Kosza) → po kolejnych **14 dniach** (`TRASH_DAYS` w `lib/plans.ts`, ten sam okres co kosz użytkownika) usunięcie z R2 i rekordów. Retencja 30 dni dotyczy każdego workspace'u bez aktywnej subskrypcji Pro/Studio — także assetów z płatnego triala i z dokupionych pakietów kredytów.
 - Usuwanie assetu przez użytkownika: soft delete → kosz („Trash”, 14 dni, możliwość przywrócenia) → hard delete w R2.
 
 ---
 
-## 14. Kolejka zadań (Inngest) i worker (Modal)
+## 14. Kolejka zadań (Upstash Workflow) i worker (Modal)
 
-### 14.1 Inngest
-- Endpoint `POST/GET/PUT /api/inngest` (serve), klucze `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`.
-- **Dispatcher** `lib/queue/dispatch.ts`: gdy `INNGEST_EVENT_KEY` jest ustawiony (lub `INNGEST_DEV=1` przy lokalnym `npx inngest-cli dev`), `inngest.send(...)`; w przeciwnym razie (lub gdy `send` się nie powiedzie) praca wykonuje się **inline** po odpowiedzi HTTP (`after()` z `next/server`): `runInlineQueue(workspaceId)` przetwarza joby `queued` FIFO z limitem współbieżności planu; ZIP-y i eksport danych analogicznie. Kod pipeline'u jest wspólny (`lib/pipelines/run.ts`).
-- Funkcje:
-  | Funkcja | Trigger | Opis |
+### 14.1 Upstash Workflow (od 2026-09-25; wcześniej Inngest)
+- **Dlaczego Upstash:** DPA Upstash (04.2025) jest automatycznie częścią regulaminu — obowiązuje także na planie darmowym (z SCC / EU-US DPF); region **EU `eu-central-1` (Frankfurt)**, obok Vercela `fra1` i Supabase; skalowanie bez migracji (free: 1 000 kroków/dzień, 10 kroków naraz, max 15 min na wywołanie HTTP; pay-as-you-go: $1 / 100 000 kroków, 100 kroków naraz). Inngest dawał DPA tylko na płatnych planach, a na darmowym zatrzymywał funkcje po limicie.
+- **Pliki:** `lib/queue/names.ts` (nazwy workflow + harmonogramy; bez `server-only`, używany też przez skrypt), `lib/queue/upstash.ts` (klient Workflow do triggerów, klient QStash dla endpointu, `Receiver`, `workflowUrl()`), `lib/queue/workflows.ts` (definicje `createWorkflow`), `lib/queue/dispatch.ts` (zlecanie + tryb inline), `app/api/workflow/[name]/route.ts` (endpoint `serveMany`), `scripts/upstash-schedules.ts` (harmonogramy).
+- **Endpoint `POST /api/workflow/<name>`** (`maxDuration = 300`): bez `QSTASH_TOKEN` → 503 `queue_disabled`; w produkcji bez `QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY` → 503 `queue_unsigned`; każde żądanie weryfikowane nagłówkiem `Upstash-Signature` (`Receiver.verify` na surowym body) **przed** przekazaniem do SDK — brak lub zły podpis → 401 `invalid_signature` (SDK samo odrzuca takie żądanie, ale odpowiada 500 ze stack trace). Nieznana nazwa → 404. `disableTelemetry: true` (SDK nie wysyła telemetrii).
+- **Dispatcher:** gdy `QSTASH_TOKEN` jest ustawiony → `Client.trigger({ url: (UPSTASH_WORKFLOW_URL || APP_URL) + '/api/workflow/<name>', body, retries, disableTelemetry: true })`; generacja z `workflowRunId: 'gen-<jobId>'` (Upstash zwraca `wfr_gen-<jobId>`, zapisywane w `jobs.workflow_run_id` — do szukania runu w konsoli Upstash). Gdy brak tokenu, gdy URL workflow to `localhost`, a `QSTASH_URL` wskazuje chmurę (chmura nie dosięgnie localhosta), albo gdy trigger zwróci błąd → praca wykonuje się **inline** po odpowiedzi HTTP (`after()` z `next/server`): `runInlineQueue(workspaceId)` przetwarza joby `queued` FIFO z limitem współbieżności planu; ZIP-y i eksport danych analogicznie. Kod pipeline'u jest wspólny (`lib/pipelines/run.ts`).
+- **Workflow:**
+  | Workflow | Start | Kroki |
   |---|---|---|
-  | `generate-asset` | `asset/generate.requested` | pipeline §8: `step.run('slot-check-N')` + `step.sleep('30s')` do zwolnienia slotu planu, potem `step.run('run-pipeline')` → `runGenerationJob(jobId)` (pipeline sam odpytuje dostawców, zapisuje `provider_job_id` i wznawia się po restarcie). `cancelOn: asset/generate.cancelled` |
-  | `provider-webhook-relay` | `provider/webhook.received` | normalizuje webhooki fal/worker do `provider/job.completed` (obserwowalność; pipeline'y i tak odpytują dostawcę) |
-  | `build-download-zip` | `download/zip.requested` | ZIP wg presetu |
-  | `retention-cleanup` | cron `0 3 * * *` | §13 |
-  | `expire-credits` | cron `*/30 * * * *` | wygaszanie kubełka `trial` po `trial_expires_at` (30 dni) oraz kubełka `subscription` po `subscription_expires_at` (zabezpieczenie: brak opłaconej faktury cyklu po 3-dniowym buforze, np. `past_due`); wpis `expiry` w księdze |
-  | `reset-violation-counters` | cron `0 0 1 * *` | §12.2 |
-  | `send-email` | `email/send.requested` | wysyłka przez Resend z retry |
-  | `data-export` | `account/export.requested` | eksport RODO (§21.5) |
+  | `generate-asset` | `POST /api/jobs`, retry admina; body `{ job_id, workspace_id }`, `retries: 3` | `slot-check-N` → `free` / `wait` (+ `wait-slot-N` = sleep 30 s, max 120) / `gone` (job nie istnieje lub jest zakończony → koniec) → `pipeline-N` = `runGenerationJob(jobId, { deadline: now + 180 s })` → `"done"` kończy, `"pending"` → `provider-wait-N` (sleep 10 s) → kolejny chunk (max 25 ≈ 80 min) → `give-up` (`provider_timeout`). `failureFunction` (po wyczerpaniu retry): `failJobById(jobId, 'internal_error')` (zwolnienie rezerwacji) + `reportError` |
+  | `build-download-zip` | `POST /api/downloads`; `{ download_id }`, `retries: 1` | `build` → `buildDownloadZip` |
+  | `data-export` | `POST /api/account { action: 'request_export' }`; `{ user_id }`, `retries: 1` | `export` → `buildDataExport` — krok **nie zwraca** wyniku (presigned link do danych użytkownika nie trafia do Upstash); `failureFunction` → `reportError` |
+  | `retention-cleanup` | harmonogram `0 3 * * *` | `cleanup` (§13) |
+  | `expire-credits` | harmonogram `*/30 * * * *` | `expire` — wygaszanie kubełka `trial` po `trial_expires_at` (30 dni) oraz `subscription` po `subscription_expires_at` (brak opłaconej faktury po 3-dniowym buforze); wpis `expiry` w księdze |
+  | `reset-violation-counters` | harmonogram `0 0 1 * *` | `reset` (§12.2) |
 
-  Wszystkie zadania cykliczne można uruchomić ręcznie z panelu admina (Flags → Maintenance tasks, `POST /api/admin/maintenance`).
-- Retry: 3 próby z backoffem dla kroków sieciowych; kroki idempotentne (provider job id zapisywany po `submit`, ponowne uruchomienie nie tworzy drugiego zlecenia).
-- Vercel: funkcje Inngest wykonują się jako Route Handler — `maxDuration = 300` (Vercel Pro/Fluid compute); ciężkie/długie operacje delegowane do workera.
+  Wszystkie zadania cykliczne można uruchomić ręcznie z panelu admina (Flags → Maintenance tasks, `POST /api/admin/maintenance`). Funkcje Inngest `send-email` (nieużywana) i `provider-webhook-relay` zostały usunięte bez zamienników — webhooki dostawców są tylko potwierdzane i logowane (§16.7).
+- **Wznawianie generacji (chunking):** każdy krok `pipeline-N` to osobne wywołanie funkcji Vercela, więc musi skończyć się przed 300 s. `runGenerationJob` jest wznawialny: moderacja jest pomijana, gdy `jobs.moderation_model` jest ustawione (zablokowany prompt kończy job), tłumaczenie — gdy `jobs.translated_prompt` istnieje; `submitAndWait` (`lib/pipelines/providerWait.ts`) zapisuje każde zlecenie u dostawcy w `jobs.provider_calls` pod kluczem `<n>:<model>` (n = kolejność wywołań w pipeline) jako `{ provider, model, id, submitted_at, done?, result? }`. Wznowiony chunk: `done` → zwraca zapisany wynik bez wywołania dostawcy; zapisane `id` → odpytuje to samo zlecenie (**bez ponownego wysłania i ponownej opłaty**); timeout dostawcy liczony od `submitted_at`. Gdy do `rt.deadline` zostaje mniej niż jeden interwał odpytywania, rzucany jest `PipelineYield` → `runGenerationJob` zwraca `"pending"`. 180 s na odpytywanie zostawia ~120 s na pobranie wyników, post-processing i upload. Kolumna jest czyszczona (`{}`) po zakończeniu joba (sukces, błąd, anulowanie) i niewidoczna dla klientów (granty kolumnowe). Tryb inline nie ma deadline'u (limit 300 s dotyczy całej generacji).
+- **Anulowanie:** `POST /api/jobs/:id/cancel` tylko ustawia status `cancelled` (i zwalnia rezerwację, jeśli zlecenie nie trafiło jeszcze do dostawcy). Workflow kończy się sam: `slot-check` zwraca `gone`, a `pipeline-N` przy statusie `cancelled` wywołuje `release_reservation` (idempotentne) i kończy; w trakcie odpytywania `assertActive` przerywa pipeline. Nie ma osobnego eventu anulowania.
+- **Harmonogramy:** QStash schedules o stałych ID `veyraflow-<name>` (cron w UTC, `retries: 2`) tworzone/aktualizowane przez `pnpm upstash:schedules https://<domena>` (czyta `QSTASH_TOKEN`/`QSTASH_URL` z `.env.local`; ponowne uruchomienie tylko aktualizuje cron i adres — np. po zmianie domeny). Harmonogram żyje w regionie tokenu (EU). Uruchamiać dopiero, gdy deployment ma `QSTASH_*` — inaczej każde wywołanie kończy się 503 i zużywa limit kroków.
+- **Co przechowuje Upstash (RODO, §21.5):** body triggerów (UUID-y jobów, workspace'ów, pobrań, użytkowników), wyniki kroków (`free`/`wait`/`gone`, `done`/`pending`, liczniki z cronów) i nagłówki techniczne — bez promptów, e-maili, plików i linków do plików.
+- **Zużycie limitu:** krótka generacja ≈ 3–4 kroki (+2 za każde 30 s czekania na slot, +2 za każde ~190 s długiej generacji); ZIP / eksport ≈ 2; crony ≈ 100 kroków dziennie (`expire-credits` 48×). Darmowy limit 1 000 kroków/dzień wystarcza na ~200 generacji dziennie.
+- **Lokalnie:** bez `QSTASH_TOKEN` — inline. Z emulatorem: `pnpm qstash:dev` (port 8080; wypisuje `QSTASH_URL=http://127.0.0.1:8080`, `QSTASH_TOKEN` i oba klucze podpisu — stałe wartości deweloperskie) → wkleić do `.env.development.local` (gitignore, ma pierwszeństwo przed `.env.local`) → `pnpm dev`; emulator woła `http://localhost:3000` bezpośrednio. W `.claude/launch.json` jest konfiguracja `qstash-dev`. **Zweryfikowane 2026-09-25 na emulatorze:** żądanie bez podpisu i ze sfałszowanym podpisem → 401 `invalid_signature`; `generate-asset` (nieistniejący job → `slot-check` = `gone`) i `build-download-zip` (nieistniejące pobranie) → `RUN_SUCCESS`. Logika wznawiania pokryta testem `tests/providerWait.test.ts`; pełna generacja na produkcyjnym Upstash do sprawdzenia po wdrożeniu (§23.6 pkt 7).
+- Retry: kroki powtarzane przez QStash (`retries` z triggera, backoff wykładniczy); pipeline sam łapie błędy dostawców i kończy job jako `failed`, więc retry dotyczy głównie awarii infrastruktury.
 
 ### 14.2 Worker Modal (Python)
 - Aplikacja Modal `veyraflow-worker`, web endpoints chronione nagłówkiem `Authorization: Bearer ${MODAL_WORKER_TOKEN}`; wejście/wyjście przez presigned URL R2 (worker pobiera z R2 i zapisuje do R2 — nie przez Vercel).
@@ -1172,7 +1175,8 @@ create table jobs (
   credits_reserved int not null default 0,
   credits_charged int,
   error_code text, error_message text,
-  inngest_run_id text,
+  workflow_run_id text,                 -- Upstash run id `wfr_gen-<jobId>` (§14.1); do 2026-09-25 inngest_run_id
+  provider_calls jsonb not null default '{}',  -- checkpointy zleceń u dostawców (§14.1), czyszczone po zakończeniu
   result_asset_ids uuid[] not null default '{}',
   started_at timestamptz, finished_at timestamptz,
   created_at timestamptz not null default now(),
@@ -1353,7 +1357,7 @@ create table audit_log (
 - `profiles`: select/update własnego wiersza (update ograniczony triggerem do pól nie-wrażliwych: `display_name`, `avatar_key`, `marketing_consent`); admin (`role='admin'`) select wszystkich.
 - `workspaces`, `credit_balances`, `credit_ledger`, `projects`, `project_references`, `assets`, `asset_files`, `jobs`, `downloads`, `share_links`: select gdy `is_member(workspace_id)`; insert/update `projects`/`project_references` gdy `is_member(workspace_id,'member')`; `assets.update` (nazwa, soft delete) gdy member; reszta zapisów tylko service role.
 - **Embedy PostgREST**: relacje `projects`↔`assets` (`assets.project_id` oraz `projects.cover_asset_id`) i `workspace_members`→`profiles` (`user_id`, `invited_by`) są niejednoznaczne — w zapytaniach trzeba podawać nazwę FK: `assets!assets_project_id_fkey(...)`, `projects!assets_project_id_fkey(...)`, `profiles!workspace_members_user_id_fkey(...)`, `profiles!workspaces_owner_id_fkey(...)`.
-- `jobs.translated_prompt`: dla roli `authenticated` `SELECT` na `jobs` jest ograniczony **grantem kolumnowym** (bez `translated_prompt`, `translator_*`, `moderation_*`, `provider_*`, `provider_cost_usd`, `inngest_run_id`); dodatkowo widok `jobs_public` (`security_invoker`) z tymi samymi kolumnami — API i UI czytają z niego. Realtime publikuje tabelę `job_status_feed` (trigger), z RLS `is_member(workspace_id)`; klient subskrybuje `postgres_changes` z filtrem `workspace_id=eq.<id>` i ma fallback polling co 4 s, gdy są aktywne joby (`hooks/use-job-feed.ts`).
+- `jobs.translated_prompt`: dla roli `authenticated` `SELECT` na `jobs` jest ograniczony **grantem kolumnowym** (bez `translated_prompt`, `translator_*`, `moderation_*`, `provider_*`, `provider_cost_usd`, `provider_calls`, `workflow_run_id`); dodatkowo widok `jobs_public` (`security_invoker`) z tymi samymi kolumnami — API i UI czytają z niego. Realtime publikuje tabelę `job_status_feed` (trigger), z RLS `is_member(workspace_id)`; klient subskrybuje `postgres_changes` z filtrem `workspace_id=eq.<id>` i ma fallback polling co 4 s, gdy są aktywne joby (`hooks/use-job-feed.ts`).
 - `profiles`: dodatkowo select wierszy współczłonków wspólnych workspace'ów (do list członków).
 - `model_pricing`, `feature_flags`: select dla wszystkich zalogowanych (potrzebne do wyceny w UI), zapis tylko admin (service role z panelu).
 - `auth_codes`, `stripe_events`, `rate_limits`, `audit_log`, `moderation_events`, `uploads`: brak dostępu z klienta.
@@ -1391,7 +1395,7 @@ Wszystkie mutujące handlery wymagają zgodnego nagłówka `Origin` (`lib/api.ts
 ### 16.3 Generacja, joby, assety
 | Metoda | Ścieżka | Opis |
 |---|---|---|
-| POST | `/api/jobs` | `{ type, project_id, input }` → wycena, walidacja planu (rozdzielczość, 4K, workspace read-only), insert job, `inngest.send('asset/generate.requested')` |
+| POST | `/api/jobs` | `{ type, project_id, input }` → wycena, walidacja planu (rozdzielczość, 4K, workspace read-only), insert job, rezerwacja kredytów, `dispatchGeneration` → workflow Upstash `generate-asset` (lub inline) |
 | GET | `/api/jobs?workspace=…&status=…` | lista |
 | GET | `/api/jobs/:id` | szczegóły (bez `translated_prompt`) |
 | POST | `/api/jobs/:id/cancel` | |
@@ -1428,9 +1432,9 @@ Wszystkie mutujące handlery wymagają zgodnego nagłówka `Origin` (`lib/api.ts
 | `/api/webhooks/stripe` | Stripe | podpis `STRIPE_WEBHOOK_SECRET` |
 | `/api/webhooks/fal` | fal.ai queue webhooks | sekret w URL `?secret=FAL_WEBHOOK_SECRET` (gdy ustawiony); podpis ED25519 fal — do dodania przy wdrożeniu. Obecnie pipeline'y nie przekazują `webhookUrl` (odpytują kolejkę), trasa zostaje na przyszłość |
 | `/api/webhooks/worker` | Modal worker | HMAC-SHA256 surowego body w nagłówku `X-Veyraflow-Signature` (`WORKER_WEBHOOK_SECRET`) |
-| `/api/inngest` | Inngest | signing key |
+| `/api/workflow/<name>` | Upstash QStash | nagłówek `Upstash-Signature` (`QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY`), §14.1 |
 
-Każdy webhook dostawcy jedynie emituje event Inngest `provider/webhook.received` (bez logiki) → dalej `provider-webhook-relay`.
+Webhooki dostawców (`fal`, `worker`) są po weryfikacji tylko potwierdzane (`200 { ok: true }`) i logowane z ID zlecenia (`acknowledgeProviderWebhook` w `lib/webhooks.ts`) — pipeline'y same odpytują dostawcę, a treść webhooka (z linkami do plików) nie jest nigdzie przekazywana.
 
 ### 16.8 Diagnostyka
 | Metoda | Ścieżka | Opis |
@@ -1587,7 +1591,7 @@ Renderer inline (`renderLayout` / `renderText`) odtwarza ten sam układ co szabl
 
 **Bezpieczeństwo renderera inline** (§22): każda wartość wstawiana do HTML przechodzi przez `esc()` (`&`, `<`, `>`, `"`), więc nazwa assetu pochodząca od użytkownika nie może wstrzyknąć znaczników; adresy URL przechodzą przez `safeUrl()`, które przepuszcza wyłącznie `http(s)://`, a wszystko inne (np. `javascript:`) degraduje do `APP_URL`. Pokrywają to testy w `tests/email.test.ts`.
 
-Bez `RESEND_API_KEY` (lokalny dev) treść — w tym kody — trafia do konsoli serwera jako `[email:dev] to=… template=… vars=…` i nic nie jest wysyłane. Retry przez funkcję Inngest `send-email`; w trybie inline (§14.1) wysyłka jest bezpośrednia, a wywołania w `lib/pipelines/run.ts` i `app/api/account/route.ts` są opakowane w `.catch()`, żeby błąd poczty nie przerwał operacji biznesowej.
+Bez `RESEND_API_KEY` (lokalny dev) treść — w tym kody — trafia do konsoli serwera jako `[email:dev] to=… template=… vars=…` i nic nie jest wysyłane. Wysyłka jest bezpośrednia (bez kolejki), a wywołania w `lib/pipelines/run.ts` i `app/api/account/route.ts` są opakowane w `.catch()`, żeby błąd poczty nie przerwał operacji biznesowej.
 
 ---
 
@@ -1619,7 +1623,7 @@ Układ 4 kolumn (desktop) / akordeon (mobile):
 - Wymóg wieku (do ujęcia w ToS): 16+ (do potwierdzenia przez właściciela).
 
 ### 21.5 Prawa użytkownika (RODO)
-- **Eksport danych** (`Settings → Data & privacy → Export`): job Inngest generuje ZIP z JSON (profil, workspace'y, projekty, assety-metadane, księga, joby bez `translated_prompt`) + lista linków do plików (presigned, 24 h) → e-mail `data-export-ready`.
+- **Eksport danych** (`Settings → Data & privacy → Export`): workflow Upstash `data-export` (lub inline) generuje ZIP z JSON (profil, workspace'y, projekty, assety-metadane, księga, joby bez `translated_prompt`) + lista linków do plików (presigned, 24 h) → e-mail `data-export-ready`.
 - **Usunięcie konta — natychmiastowe, potwierdzane e-mailem (zmiana 2026-09-22).** Nie ma już harmonogramu ani 14-dniowego okresu karencji. Przebieg:
 
   1. `Settings → Data & privacy → Delete account`. Karta pokazuje ostrzeżenie „This cannot be undone" i pole tekstowe z etykietą **„Type `<adres e-mail konta>` to confirm"**.
@@ -1638,8 +1642,8 @@ Układ 4 kolumn (desktop) / akordeon (mobile):
 
   **Co zniknęło razem z harmonogramem:** akcje `request_deletion` i `cancel_deletion` w `POST /api/account`, kolumna `profiles.deletion_requested_at` (usunięta z tabeli i z listy chronionych kolumn w triggerze `profiles_restrict_self_update`), funkcja `processAccountDeletions()` w `lib/maintenance.ts`, jej krok w cronie Inngest `retention-cleanup`, zadanie `deletions` w `POST /api/admin/maintenance` oraz e-mail `account-deletion-scheduled` (zastąpiony przez `account-deleted`).
 
-- Retencja logów: Vercel/Inngest wg ich ustawień; nasze `audit_log` 12 miesięcy.
-- Podmioty przetwarzające (do wpisania w Privacy Policy): Supabase (EU, Frankfurt), Cloudflare R2 (bucket `plikiveyraflow1`, **location hint `EEUR`** = Europa Wschodnia, ale **`jurisdiction: default`** — location hint to preferencja umiejscowienia, a nie prawna gwarancja przechowywania wyłącznie w UE; twardą gwarancję daje dopiero bucket utworzony z `jurisdiction: eu`, czego nie da się później zmienić — patrz §27 poz. 9b), Vercel, Inngest, Stripe, Resend (EU), OpenAI, fal.ai (uruchamia modele Hyper3D Rodin, Microsoft TRELLIS, ElevenLabs i Google Lyria — dane wejściowe, w tym zdjęcia, trafiają do storage fal), Modal, **Google Ireland Ltd. — Google Analytics 4** (tylko po zgodzie: identyfikator cookie, oczyszczone adresy stron, zdarzenia z §21.6, przybliżona lokalizacja z IP — GA4 nie zapisuje adresów IP; możliwy transfer do USA w ramach EU-US Data Privacy Framework), **Google Cloud — Error Reporting** (dane diagnostyczne błędów bez IP/e-maili/promptów, pseudonimowy ID użytkownika, retencja 30 dni, prawnie uzasadniony interes; §25.4).
+- Retencja logów: Vercel/Upstash wg ich ustawień; nasze `audit_log` 12 miesięcy.
+- Podmioty przetwarzające (do wpisania w Privacy Policy): Supabase (EU, Frankfurt), Cloudflare R2 (bucket `plikiveyraflow1`, **location hint `EEUR`** = Europa Wschodnia, ale **`jurisdiction: default`** — location hint to preferencja umiejscowienia, a nie prawna gwarancja przechowywania wyłącznie w UE; twardą gwarancję daje dopiero bucket utworzony z `jurisdiction: eu`, czego nie da się później zmienić — patrz §27 poz. 9b), Vercel, **Upstash Inc. — Upstash Workflow/QStash** (kolejka zadań, region EU `eu-central-1` Frankfurt; przechowuje ID jobów/workspace'ów/pobrań/użytkowników i techniczne wyniki kroków — bez promptów, e-maili i linków do plików; DPA z 04.2025 automatycznie częścią regulaminu, także na planie darmowym, SCC/DPF; §14.1), Stripe, Resend (EU), OpenAI, fal.ai (uruchamia modele Hyper3D Rodin, Microsoft TRELLIS, ElevenLabs i Google Lyria — dane wejściowe, w tym zdjęcia, trafiają do storage fal), Modal, **Google Ireland Ltd. — Google Analytics 4** (tylko po zgodzie: identyfikator cookie, oczyszczone adresy stron, zdarzenia z §21.6, przybliżona lokalizacja z IP — GA4 nie zapisuje adresów IP; możliwy transfer do USA w ramach EU-US Data Privacy Framework), **Google Cloud — Error Reporting** (dane diagnostyczne błędów bez IP/e-maili/promptów, pseudonimowy ID użytkownika, retencja 30 dni, prawnie uzasadniony interes; §25.4).
 
 ### 21.6 Google Analytics 4 (od 2026-09-24)
 
@@ -1701,7 +1705,7 @@ Układ 4 kolumn (desktop) / akordeon (mobile):
 6. Migracje: zaaplikowane przez MCP Supabase (nazwy `veyraflow_0001_…_0011`); lokalne pliki `supabase/migrations/*.sql` są ich odpowiednikiem 1:1 (przy odtwarzaniu od zera: `supabase link --project-ref <ref>` → `supabase db push`). Seed: `supabase/seed.sql` (wgrany). Admin: ręcznie `update profiles set role='admin' where email='…'`.
 7. **Realtime**: publikacja `supabase_realtime` zawiera `job_status_feed` (zrobione migracją 0005).
 8. **Storage**: nieużywany (pliki w R2) — nie tworzyć bucketów.
-9. Włącz **pg_cron**? Nie — harmonogramy obsługuje Inngest.
+9. Włącz **pg_cron**? Nie — harmonogramy obsługuje Upstash (QStash schedules, §14.1).
 
 ### 23.2 Cloudflare R2 (stan 2026-09-23: **R2 włączone, bucket istnieje, brakuje tokenu S3**)
 
@@ -1740,10 +1744,10 @@ Układ 4 kolumn (desktop) / akordeon (mobile):
    ```
    Branch `main` = Production; pozostałe branche/PR = Preview. Domena Production: `asset-generator-tawny.vercel.app`.
 2. ☐ Env (Production/Preview/Development) wg §24; sekrety oznaczone „Sensitive” — **celowo niewpisane** (decyzja właściciela 2026-09-24); instrukcja: §0.3 pkt 13. Build (`next build`) przechodzi bez żadnych zmiennych (zweryfikowane w czystym klonie repo); runtime bez nich zwraca 500.
-3. ✅ Fluid compute ON; `export const maxDuration = 300` w `app/api/inngest/route.ts`, `app/api/downloads/route.ts` i `app/api/jobs/route.ts` (w dwóch ostatnich kolejka inline wykonuje pracę w `after()`, więc limit czasu dotyczy całej generacji / budowy ZIP-a).
+3. ✅ Fluid compute ON; `export const maxDuration = 300` w `app/api/workflow/[name]/route.ts`, `app/api/downloads/route.ts` i `app/api/jobs/route.ts` (w dwóch ostatnich kolejka inline wykonuje pracę w `after()`, więc limit czasu dotyczy całej generacji / budowy ZIP-a).
 4. ☐ Domena produkcyjna **`veyraflow.eu`** (apex) + `www.veyraflow.eu` → redirect 308 na apex; DNS (A/CNAME) wg instrukcji Vercel u rejestratora.
 5. ☐ Vercel Analytics włączone dopiero po zgodzie cookies (komponent ładowany warunkowo).
-6. Crony nie są konfigurowane w Vercel (brak `crons` w `vercel.json`) — harmonogramy (`retention-cleanup`, `expire-credits`, `reset-violation-counters`) obsługuje Inngest (§14.1).
+6. Crony nie są konfigurowane w Vercel (brak `crons` w `vercel.json`) — harmonogramy (`retention-cleanup`, `expire-credits`, `reset-violation-counters`) obsługują QStash schedules Upstash (§14.1, §23.6).
 7. Plan **Hobby** (niekomercyjny) — przed uruchomieniem płatności przejść na Pro.
 
 ### 23.4 Stripe
@@ -1774,8 +1778,16 @@ Kolejność ma znaczenie: klucza API nie da się później przepiąć na inną d
 5. **Weryfikacja.** Wysłać próbny e-mail przez API z `from = EMAIL_FROM`; odpowiedź `200` z `id` oznacza poprawną parę klucz↔domena. Adresy testowe Resend: `delivered@resend.dev`, `bounced@resend.dev`, `complained@resend.dev`.
 6. **Opcjonalnie:** Supabase Auth → SMTP przez Resend (`smtp.resend.com:465`, user `resend`, hasło = klucz API, sender `website@veyraflow.eu`) dla wbudowanych e-maili Supabase — aplikacja ich nie używa (§5).
 
-### 23.6 Inngest
-- Aplikacja w Inngest Cloud, połączona z Vercel (integracja) → `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`. Lokalnie: `npx inngest-cli@latest dev`.
+### 23.6 Upstash Workflow (stan 2026-09-25: **kod gotowy, konto istnieje, brak zmiennych na Vercelu i harmonogramów**)
+Konto Upstash jest założone i podłączone (QStash user w regionach `eu-central-1` i `us-east-1`). Aplikacja używa **wyłącznie regionu EU**.
+1. https://console.upstash.com → **QStash** → przełącznik regionu u góry → **EU (eu-central-1)**. W karcie **Request Builder / Environment Keys** skopiować: `QSTASH_URL` (`https://qstash-eu-central-1.upstash.io`), `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`.
+2. Vercel → projekt **asset-generator** → **Settings → Environment Variables** → dodać te 4 zmienne (środowiska *Production* + *Preview*); `QSTASH_TOKEN` i oba klucze podpisu oznaczyć **Sensitive**. Sprawdzić, że `APP_URL` = publiczny adres produkcji (Upstash woła `APP_URL/api/workflow/<name>`). **Redeploy**.
+3. Lokalnie dopisać `QSTASH_TOKEN` (region EU) do `.env.local` — potrzebny tylko skryptowi harmonogramów; lokalny `pnpm dev` z `APP_URL=http://localhost:3000` i tak wykona joby inline (dispatcher nie wysyła localhosta do chmury).
+4. `pnpm upstash:schedules https://asset-generator-tawny.vercel.app` (docelowo `https://veyraflow.eu`) → tworzy 3 harmonogramy `veyraflow-retention-cleanup`, `veyraflow-expire-credits`, `veyraflow-reset-violation-counters`. Po zmianie domeny uruchomić ponownie z nowym adresem (ID są stałe — harmonogramy zostaną zaktualizowane, nie zdublowane). Widoczne w konsoli: QStash → **Schedules**.
+5. Przed startem sprzedaży: konsola Upstash → **Billing** → plan **Pay as you go** (karta) — plan darmowy ma twardy limit 1 000 kroków/dzień; opcjonalnie ustawić budżet miesięczny.
+6. Jeśli runy w QStash → **Workflow → Logs** kończą się `401` z HTML-em Vercela, adres jest chroniony Deployment Protection — wyłączyć ochronę dla domeny produkcyjnej albo użyć niechronionej domeny w `APP_URL` / `UPSTASH_WORKFLOW_URL`.
+7. **Weryfikacja po wdrożeniu:** wygenerować asset → w Workflow → Logs run `wfr_gen-<jobId>` ze stanem `RUN_SUCCESS` i krokami `slot-check-0`, `pipeline-0` (+ `provider-wait-N`/`pipeline-N` dla długich generacji); `jobs.workflow_run_id` ustawione, `jobs.provider_calls` = `{}` po zakończeniu. Ręcznie odpalić harmonogram `veyraflow-expire-credits` (Schedules → ⋯ → Trigger) → run `RUN_SUCCESS`.
+8. Dokumenty prawne (§21.5): w Privacy Policy zamienić Inngest na **Upstash Inc.** (kolejka zadań, region EU, SCC/DPF).
 
 ### 23.7 Modal (worker)
 - Konto Modal, `modal token new`; `modal deploy worker/modal_app.py` → URL endpointów → `MODAL_WORKER_URL`; sekret `MODAL_WORKER_TOKEN` (losowy, ustawiony w Modal Secrets i w Vercel), `WORKER_WEBHOOK_SECRET`; w Modal Secrets także dane R2 (do PUT/GET przez presigned nie są potrzebne — worker dostaje presigned URL; zostawić bez kluczy R2).
@@ -1814,7 +1826,7 @@ Zamiennik Firebase Crashlytics dla weba (§25.4). Projekt Firebase **jest** proj
 5. **Powiadomienia**: https://console.cloud.google.com/errors → **Configure notifications** → kanał e-mail (Monitoring → Notification channels → Email, np. `support@veyraflow.eu`) → Error Reporting wysyła e-mail przy **nowej grupie błędów** i przy jej powrocie po oznaczeniu jako rozwiązana.
 6. **Test**: na produkcji w konsoli przeglądarki (DevTools) wpisać `setTimeout(() => { throw new Error("Veyraflow Error Reporting test") })` → w Network `POST /api/client-errors` = 204 → po ~1 min błąd widoczny w https://console.cloud.google.com/errors (serwis `veyraflow-browser`, wersja `production-<sha>`); oznaczyć go jako *Resolved*. Błędy serwera pojawiają się jako `veyraflow-server`. Brak wpisu → Vercel → **Logs**, filtr `error-reporting` (np. `HTTP 403` = zła restrykcja klucza lub API niewłączone, `HTTP 400 API_KEY_INVALID` = zły klucz, `404` = zły Project ID).
 7. **Dokumenty prawne** (§27 poz. 20): w Privacy Policy dopisać Google Cloud (Google Ireland Ltd.) jako podmiot przetwarzający dane diagnostyczne (treść błędu, stack trace, adres strony bez parametrów, user-agent, pseudonimowy ID użytkownika; 30 dni; prawnie uzasadniony interes).
-8. Opcjonalnie usunąć z `.env.local` nieużywaną pozostałość `SENTRY_DSN`.
+8. ~~Usunąć z `.env.local` nieużywaną pozostałość `SENTRY_DSN`~~ — zrobione 2026-09-25.
 
 ---
 
@@ -1836,7 +1848,6 @@ SUPABASE_DB_URL=                          # [S] tylko dla migracji/CLI
 AUTH_CODE_PEPPER=                         # [S] także klucz HMAC podpisanych linków lokalnego storage
 TOS_VERSION=2026-09-20
 MOCK_PROVIDERS=false                      # true = pipeline'y zwracają lokalne placeholdery (§0.4), bez kosztów; brak FAL_KEY i OPENAI_API_KEY też włącza mock
-INNGEST_DEV=                              # 1 = wysyłaj eventy do lokalnego `npx inngest-cli dev` zamiast trybu inline
 
 OPENAI_API_KEY=                           # [S]
 PROMPT_TRANSLATOR_MODEL=gpt-5.6-luna      # zweryfikować ID modelu w OpenAI
@@ -1862,8 +1873,11 @@ EMAIL_FROM="Veyraflow <website@veyraflow.eu>"   # domena veyraflow.eu zweryfikow
 SUPPORT_EMAIL=support@veyraflow.eu
 TRIAL_CREDITS=86
 
-INNGEST_EVENT_KEY=                        # [S]
-INNGEST_SIGNING_KEY=                      # [S]
+QSTASH_URL=https://qstash-eu-central-1.upstash.io   # region EU (domyślny w lib/env.ts)
+QSTASH_TOKEN=                             # [S] pusty = kolejka inline (§14.1)
+QSTASH_CURRENT_SIGNING_KEY=               # [S] wymagany w produkcji (inaczej /api/workflow → 503)
+QSTASH_NEXT_SIGNING_KEY=                  # [S]
+UPSTASH_WORKFLOW_URL=                     # opcjonalnie: publiczny adres zamiast APP_URL (np. tunel do localhosta)
 
 MODAL_WORKER_URL=
 MODAL_WORKER_TOKEN=                       # [S]
@@ -1887,7 +1901,7 @@ pnpm typecheck && pnpm test && pnpm build
 pnpm check:public-env             # po build: skan .env* i bundla klienta (§22)
 pnpm r2:check                     # round-trip na bucketcie R2 (§23.2); bez kluczy R2_* kończy się instrukcją, skąd je wziąć
 # opcjonalnie:
-INNGEST_DEV=1 pnpm dev  +  pnpm inngest:dev        # kolejka przez lokalny Inngest zamiast inline
+pnpm qstash:dev  +  wartości QSTASH_* z jego wyjścia w .env.development.local  +  pnpm dev   # kolejka przez lokalny emulator Upstash zamiast inline
 stripe listen --forward-to localhost:3000/api/webhooks/stripe
 cd worker && modal serve modal_app.py              # URL dev do MODAL_WORKER_URL
 ```
@@ -1896,16 +1910,16 @@ Odtworzenie bazy od zera: `supabase link --project-ref <ref>` → `supabase db p
 Od 2026-09-23 `.env` ma `MOCK_PROVIDERS=false` — generacje idą do fal.ai i kosztują (§9.7). Aby rozwijać i testować UI oraz pipeline bez kosztów, ustaw `MOCK_PROVIDERS=true`: pipeline'y generują wtedy placeholdery lokalnie (§0.4). Pliki lądują w `.data/storage/` (gitignore).
 
 ### 25.2 Testy
-- Unit (Vitest) — **zrobione**: `tests/postprocess.test.ts` (packer atlasu + `.tres`, kwantyzacja palety, WAV/normalizacja/loop, GLB writer/split, presety silników) `tests/validation.test.ts` (schematy zod auth/jobs/style guide, kontrakty tłumacza i moderacji) `tests/email.test.ts` (routing alias→szablon Resend vs. renderer inline, escaping wartości użytkownika, odrzucanie linków spoza `http(s)`) i `tests/falModels.test.ts` (§9.7: routing endpointów, mapowanie parametrów UI → fal dla Rodina/TRELLIS/SFX/Lyrii/TTS, pierwszeństwo ustawień ręcznych nad `model_params`, odrzucanie niepoprawnych wartości LLM, reguły TRELLIS i zakres `speed`, koszty, kontrakt tłumacza z `model_params`) i `tests/analytics.test.ts` (§21.6: oczyszczanie URL-i dla GA4 — tokeny/UUID → `[id]`, usuwanie query poza `utm_*`) i `tests/errorReporting.test.ts` (§25.4: format `message`/`reportLocation`, dokładny URL i treść `events:report` przy zamockowanym `fetch`, no-op bez konfiguracji, brak wyjątku przy awarii sieci, filtr szumu przeglądarki) i `tests/accountDeletion.test.ts` (§21.5: `deleteUserFiles` usuwa `ws/<id>/`, `downloads/<id>/` i `users/<id>/`, a błąd storage jest propagowany) — **46 testów**. `tests/validation.test.ts` pilnuje też, że `ASSET_TYPES` zawiera dokładnie 4 typy po usunięciu generatorów 2D (§9.0) i sprawdza domyślne wartości `model3dInputSchema`. Księga kredytów przetestowana skryptem SQL bezpośrednio na projekcie (§0.1). Do dodania: webhook Stripe (fixtures), testy adapterów z `msw`.
-- Integracyjne: pipeline'y z `msw` mockami dostawców; Inngest `InngestTestEngine`.
+- Unit (Vitest) — **zrobione**: `tests/postprocess.test.ts` (packer atlasu + `.tres`, kwantyzacja palety, WAV/normalizacja/loop, GLB writer/split, presety silników) `tests/validation.test.ts` (schematy zod auth/jobs/style guide, kontrakty tłumacza i moderacji) `tests/email.test.ts` (routing alias→szablon Resend vs. renderer inline, escaping wartości użytkownika, odrzucanie linków spoza `http(s)`) i `tests/falModels.test.ts` (§9.7: routing endpointów, mapowanie parametrów UI → fal dla Rodina/TRELLIS/SFX/Lyrii/TTS, pierwszeństwo ustawień ręcznych nad `model_params`, odrzucanie niepoprawnych wartości LLM, reguły TRELLIS i zakres `speed`, koszty, kontrakt tłumacza z `model_params`) i `tests/analytics.test.ts` (§21.6: oczyszczanie URL-i dla GA4 — tokeny/UUID → `[id]`, usuwanie query poza `utm_*`) i `tests/errorReporting.test.ts` (§25.4: format `message`/`reportLocation`, dokładny URL i treść `events:report` przy zamockowanym `fetch`, no-op bez konfiguracji, brak wyjątku przy awarii sieci, filtr szumu przeglądarki) i `tests/accountDeletion.test.ts` (§21.5: `deleteUserFiles` usuwa `ws/<id>/`, `downloads/<id>/` i `users/<id>/`, a błąd storage jest propagowany) i `tests/providerWait.test.ts` (§14.1: przerwa `PipelineYield` przy deadline z zapisanym ID zlecenia, wznowienie odpytuje zapisane zlecenie bez ponownego wysłania, gotowy wynik bez wywołania dostawcy, timeout liczony od pierwszego wysłania, osobne checkpointy dla kolejnych zleceń) — **51 testów**. `tests/validation.test.ts` pilnuje też, że `ASSET_TYPES` zawiera dokładnie 4 typy po usunięciu generatorów 2D (§9.0) i sprawdza domyślne wartości `model3dInputSchema`. Księga kredytów przetestowana skryptem SQL bezpośrednio na projekcie (§0.1). Do dodania: webhook Stripe (fixtures), testy adapterów z `msw`.
+- Integracyjne: pipeline'y z `msw` mockami dostawców; workflow na lokalnym emulatorze QStash (`pnpm qstash:dev`, §14.1).
 - E2E (Playwright) — **do dodania**: rejestracja z kodem (kod odczytywany z bazy w teście), logowanie, tworzenie projektu, generacja obrazu (mock), pobieranie ZIP, checkout (Stripe test mode).
 - CI (GitHub Actions) — do dodania (repo nie jest jeszcze w git): lint, typecheck, unit, `check-public-env`, build; e2e na PR do `main`.
 
 ### 25.3 Wdrożenie
-- Branch `main` → Production (Vercel), PR → Preview (z Supabase branch lub projektem dev; Inngest branch envs).
+- Branch `main` → Production (Vercel), PR → Preview (z Supabase branch lub projektem dev). Preview dziedziczy `QSTASH_*`; runy wołają adres z `APP_URL` / `UPSTASH_WORKFLOW_URL` danego środowiska.
 - Migracje: `supabase db push` w kroku CI przed deployem produkcyjnym (ręczne zatwierdzenie).
 - Worker: `modal deploy` z CI po zmianach w `worker/`.
-- Monitoring: Vercel logs, Inngest dashboard, Stripe dashboard, **Google Cloud Error Reporting** (§25.4, powiadomienia e-mail o nowych błędach), alert e-mail przy > 10% failed jobs/h (Inngest failure handler → `send-email` do `SUPPORT_EMAIL`).
+- Monitoring: Vercel logs, konsola Upstash (QStash → Workflow → Logs, DLQ), Stripe dashboard, **Google Cloud Error Reporting** (§25.4, powiadomienia e-mail o nowych błędach; trafiają tam też workflow, które wyczerpały retry — `failureFunction`, §14.1). Roadmapa: alert e-mail przy > 10% failed jobs/h.
 
 ### 25.4 Raportowanie błędów — Google Cloud Error Reporting (od 2026-09-24)
 
@@ -1986,7 +2000,7 @@ Rozstrzygnięte (2026-09-22): **generatory `image` i `sprite_animation` usunięt
 3b. ✅ Migracja `20260923000013_fal_models.sql` — cennik pod fal.ai (§11.2): endpointy fal w `model_pricing`, wiersze `music.lyria3.*`, usunięte wiersze ElevenLabs Music / Stable Audio / eleven_v3, rig/animacje `unbound`, pusty payload flagi muzyki. `seed.sql` odzwierciedla ten stan.
 4. ✅ Workspace'y, role, zaproszenia (§6); projekty, style guide, referencje (§7).
 5. ✅ Storage (§13): klient R2 + presigned URL + uploady + quota; ✅ R2 włączone i bucket `plikiveyraflow1` (§23.2 pkt 0–1); ☐ token S3 do `.env.local`, CORS, lifecycle — ręcznie w dashboardzie (§23.2 pkt 2–4), weryfikacja `pnpm r2:check`; do tego czasu sterownik lokalny.
-6. ✅ Kolejka (§14.1): funkcje Inngest + tryb inline; adapter fal.ai na `@fal-ai/client` i rejestr modeli (§8.4, §9.7); tłumacz (§8.3, z `model_params`) i moderacja (§12) z kanonicznymi promptami; ✅ `FAL_KEY`; ☐ saldo fal.ai, ☐ `OPENAI_API_KEY`, ☐ klucze Inngest.
+6. ✅ Kolejka (§14.1): workflow Upstash (od 2026-09-25, wcześniej Inngest) + tryb inline + wznawianie generacji (`jobs.provider_calls`); adapter fal.ai na `@fal-ai/client` i rejestr modeli (§8.4, §9.7); tłumacz (§8.3, z `model_params`) i moderacja (§12) z kanonicznymi promptami; ✅ `FAL_KEY`; ☐ saldo fal.ai, ☐ `OPENAI_API_KEY`, ☐ `QSTASH_*` na Vercelu + `pnpm upstash:schedules` (§23.6).
 7. ✅ Pipeline'y §9 i post-processing §10 (sharp, packer atlasu, `.tres`, GIF, README per silnik, GLB writer); worker Modal (§14.2) — kod napisany, ☐ deploy (`modal deploy`) i pliki BVH.
 8. ✅ Kredyty i Stripe (§11): RPC księgi, checkout, portal, webhooki, cykl miesięczny, trial jednorazowy; ☐ produkty/ceny/webhook w Stripe (§23.4).
 9. ✅ UI (§17): marketing, auth, app (dashboard, projects, generate ×6, library, asset, jobs, billing, settings, workspaces/new), share (§18), admin (§19).

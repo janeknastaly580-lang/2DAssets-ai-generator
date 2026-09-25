@@ -62,7 +62,7 @@ export default function AdminFlagsPage() {
       </div>
       <div>
         <h2 className="mb-2 font-semibold">Maintenance tasks (run now)</h2>
-        <p className="text-muted-foreground mb-2 text-xs">These run automatically via Inngest crons in production (SPEC §14.1). Use here to trigger them locally.</p>
+        <p className="text-muted-foreground mb-2 text-xs">These run automatically on Upstash schedules in production (SPEC §14.1). Use here to trigger them locally or on demand.</p>
         <div className="flex flex-wrap gap-2">
           {[["retention", "Retention cleanup"], ["expire_credits", "Expire credits"], ["voices", "Refresh voice cache"], ["violations", "Reset violation counters"], ["deletions", "Process account deletions"]].map(([t, l]) => (
             <Button key={t} size="sm" variant="outline" onClick={() => runTask(t)}>{l}</Button>

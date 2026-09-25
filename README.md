@@ -30,9 +30,10 @@ select public.grant_credits((select id from public.workspaces where owner_id = (
 | `pnpm test` | Vitest unit tests |
 | `pnpm lint` | ESLint |
 | `pnpm check:public-env` | fails if a `NEXT_PUBLIC_*` var looks like a secret or the client bundle contains provider markers |
-| `pnpm inngest:dev` | local Inngest dev server (set `INNGEST_DEV=1` to route events to it; otherwise jobs run inline) |
+| `pnpm qstash:dev` | local Upstash QStash emulator on :8080 — put the printed `QSTASH_*` values in `.env.development.local` to run workflows locally; otherwise jobs run inline |
+| `pnpm upstash:schedules <https-url>` | create/update the QStash schedules for the maintenance workflows (SPEC §14.1) |
 | `pnpm db:push` / `pnpm db:types` | Supabase CLI migrations / regenerate `lib/supabase/database.types.ts` |
 
 ## Layout
 
-See SPEC §4.2. In short: `app/` (routes + API), `components/`, `lib/` (server logic: auth, credits, pipelines, storage, billing, AI adapters), `inngest/` (queue functions), `supabase/` (migrations + seed), `worker/` (Modal Python worker), `docs/legal/` (placeholder legal documents), `tests/`.
+See SPEC §4.2. In short: `app/` (routes + API), `components/`, `lib/` (server logic: auth, credits, pipelines, storage, billing, AI adapters), `lib/queue/` (Upstash Workflow definitions + dispatcher), `supabase/` (migrations + seed), `worker/` (Modal Python worker), `docs/legal/` (placeholder legal documents), `tests/`.

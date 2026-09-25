@@ -478,13 +478,14 @@ export type Database = {
           error_message: string | null
           finished_at: string | null
           id: string
-          inngest_run_id: string | null
+          workflow_run_id: string | null
           input: Json
           moderation_model: string | null
           moderation_prompt_version: string | null
           progress: number
           project_id: string | null
           provider: string | null
+          provider_calls: Json
           provider_cost_usd: number | null
           provider_job_id: string | null
           provider_model: string | null
@@ -508,13 +509,14 @@ export type Database = {
           error_message?: string | null
           finished_at?: string | null
           id?: string
-          inngest_run_id?: string | null
+          workflow_run_id?: string | null
           input: Json
           moderation_model?: string | null
           moderation_prompt_version?: string | null
           progress?: number
           project_id?: string | null
           provider?: string | null
+          provider_calls?: Json
           provider_cost_usd?: number | null
           provider_job_id?: string | null
           provider_model?: string | null
@@ -538,13 +540,14 @@ export type Database = {
           error_message?: string | null
           finished_at?: string | null
           id?: string
-          inngest_run_id?: string | null
+          workflow_run_id?: string | null
           input?: Json
           moderation_model?: string | null
           moderation_prompt_version?: string | null
           progress?: number
           project_id?: string | null
           provider?: string | null
+          provider_calls?: Json
           provider_cost_usd?: number | null
           provider_job_id?: string | null
           provider_model?: string | null

@@ -86,11 +86,22 @@ export const env = {
   get EMAIL_FROM() {
     return str("EMAIL_FROM", "Veyraflow <website@veyraflow.eu>").replace(/^"|"$/g, "");
   },
-  get INNGEST_EVENT_KEY() {
-    return str("INNGEST_EVENT_KEY");
+  /** Upstash QStash / Workflow (SPEC §14.1). EU region by default — data stays in Frankfurt. */
+  get QSTASH_URL() {
+    return str("QSTASH_URL", "https://qstash-eu-central-1.upstash.io").replace(/\/$/, "");
   },
-  get INNGEST_SIGNING_KEY() {
-    return str("INNGEST_SIGNING_KEY");
+  get QSTASH_TOKEN() {
+    return str("QSTASH_TOKEN");
+  },
+  get QSTASH_CURRENT_SIGNING_KEY() {
+    return str("QSTASH_CURRENT_SIGNING_KEY");
+  },
+  get QSTASH_NEXT_SIGNING_KEY() {
+    return str("QSTASH_NEXT_SIGNING_KEY");
+  },
+  /** Public base URL Upstash calls back (defaults to APP_URL); set when APP_URL is not reachable, e.g. a tunnel. */
+  get UPSTASH_WORKFLOW_URL() {
+    return str("UPSTASH_WORKFLOW_URL").replace(/\/$/, "");
   },
   get MODAL_WORKER_URL() {
     return str("MODAL_WORKER_URL").replace(/\/$/, "");
@@ -129,8 +140,12 @@ export const integrations = {
   get resend() {
     return Boolean(env.RESEND_API_KEY);
   },
-  get inngest() {
-    return Boolean(env.INNGEST_EVENT_KEY);
+  /** Upstash Workflow queue; without it jobs run inline in `after()` (SPEC §14.1). */
+  get queue() {
+    return Boolean(env.QSTASH_TOKEN);
+  },
+  get queueSigning() {
+    return Boolean(env.QSTASH_CURRENT_SIGNING_KEY && env.QSTASH_NEXT_SIGNING_KEY);
   },
   get worker() {
     return Boolean(env.MODAL_WORKER_URL && env.MODAL_WORKER_TOKEN);
