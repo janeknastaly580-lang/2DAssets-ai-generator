@@ -8,7 +8,7 @@ import { join } from "node:path";
 
 const ALLOWED = new Set(["NEXT_PUBLIC_SUPABASE_ANON_KEY", "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"]);
 const SUSPICIOUS = /KEY|SECRET|TOKEN|PASSWORD/i;
-const PROVIDER_MARKERS = ["api.openai.com", "queue.fal.run", "api.meshy.ai", "api.elevenlabs.io", "SUPABASE_SERVICE_ROLE_KEY", "sk_live_", "re_"];
+const PROVIDER_MARKERS = ["api.openai.com", "queue.fal.run", "api.meshy.ai", "api.elevenlabs.io", "clouderrorreporting.googleapis.com", "SUPABASE_SERVICE_ROLE_KEY", "sk_live_", "re_"];
 
 let failed = false;
 

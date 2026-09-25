@@ -92,3 +92,12 @@ export const adminWorkspacePatchSchema = z.object({
   plan: z.enum(["none", "trial", "pro", "studio"]).optional(),
   reason: z.string().trim().min(3).max(300),
 });
+
+/** SPEC §25.4 — browser error report forwarded to Google Cloud Error Reporting. */
+export const clientErrorSchema = z.object({
+  kind: z.enum(["error", "unhandledrejection", "boundary", "global-boundary"]),
+  name: z.string().max(100).optional(),
+  message: z.string().max(1000),
+  stack: z.string().max(8000).optional(),
+  url: z.string().max(2000),
+});

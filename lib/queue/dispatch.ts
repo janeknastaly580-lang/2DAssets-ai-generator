@@ -7,6 +7,7 @@ import { buildDownloadZip } from "@/lib/downloads";
 import { buildDataExport } from "@/lib/dataExport";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { planFor } from "@/lib/plans";
+import { reportError } from "@/lib/errorReporting";
 
 /**
  * Queue dispatcher. With Inngest configured (INNGEST_EVENT_KEY, or the local dev server reachable)
@@ -56,7 +57,10 @@ export async function runInlineQueue(workspaceId: string): Promise<void> {
         .limit(1)
         .maybeSingle();
       if (!next) break;
-      await runGenerationJob(next.id).catch((e) => console.error("[queue] job failed", e));
+      await runGenerationJob(next.id).catch((e) => {
+        console.error("[queue] job failed", e);
+        return reportError(e, { where: "queue inline job" });
+      });
     }
   } finally {
     running.delete(workspaceId);
@@ -70,7 +74,12 @@ export async function dispatchDownload(downloadId: string) {
 
 export async function dispatchDataExport(userId: string) {
   if (await trySend({ name: "account/export.requested", data: { user_id: userId } })) return;
-  after(() => buildDataExport(userId).catch((e) => console.error("[export] failed", e)));
+  after(() =>
+    buildDataExport(userId).catch((e) => {
+      console.error("[export] failed", e);
+      return reportError(e, { where: "data export", userId });
+    }),
+  );
 }
 
 export async function dispatchCancel(jobId: string) {

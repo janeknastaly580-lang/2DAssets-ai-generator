@@ -7,6 +7,7 @@ import { falModelFor, llmParamsForTranslator } from "@/lib/ai/falModels";
 import { ProviderError } from "@/lib/ai/providers/types";
 import { releaseReservation, settleJobCredits } from "@/lib/credits/ledger";
 import { sendTemplateEmail } from "@/lib/email/resend";
+import { reportError } from "@/lib/errorReporting";
 import { getFlag } from "@/lib/flags";
 import { ASSET_TYPES, parseJobInput, type AssetType, type JobInput, type VoiceInput } from "@/lib/validation/jobs";
 import { styleGuideSchema, type StyleGuide } from "@/lib/validation/project";
@@ -171,6 +172,8 @@ export async function runGenerationJob(jobId: string, rt: PipelineRuntime = inli
     const message = e instanceof Error ? e.message : String(e);
     console.error(`[pipeline] job ${jobId} failed:`, message);
     await failJob(job, code, env.IS_DEV ? message : friendly(code));
+    // JobFailure = expected, user-facing outcome (timeout, unriggable input); everything else is a bug or a provider outage
+    if (!(e instanceof JobFailure)) await reportError(e, { where: `pipeline ${job.type}`, userId: job.user_id });
   }
 }
 

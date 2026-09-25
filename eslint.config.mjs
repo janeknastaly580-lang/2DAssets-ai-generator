@@ -8,7 +8,7 @@ const compat = new FlatCompat({ baseDirectory: __dirname });
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
-  { ignores: [".next/**", "node_modules/**", "worker/**", ".data/**"] },
+  { ignores: [".next/**", "node_modules/**", "worker/**", ".data/**", "next-env.d.ts"] },
   { rules: { "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }], "@next/next/no-img-element": "off" } },
 ];
 

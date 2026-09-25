@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { env, integrations } from "@/lib/env";
 import { stripe } from "@/lib/billing/stripe";
 import { handleStripeEvent } from "@/lib/billing/webhook";
+import { reportError } from "@/lib/errorReporting";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
     await handleStripeEvent(event);
   } catch (e) {
     console.error("[stripe webhook]", e);
+    await reportError(e, { where: `stripe webhook ${event.type}`, httpRequest: { method: "POST", url: req.url, responseStatusCode: 500 } });
     return NextResponse.json({ ok: false, error: { code: "handler_error" } }, { status: 500 });
   }
   return NextResponse.json({ ok: true, received: event.id });

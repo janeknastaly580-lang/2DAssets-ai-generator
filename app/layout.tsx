@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Providers } from "@/components/providers";
 import { CookieBanner } from "@/components/cookie-banner";
+import { Analytics } from "@/components/analytics";
+import { ErrorReporter } from "@/components/error-reporter";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,6 +18,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           {children}
           <CookieBanner />
+          <Analytics />
+          <ErrorReporter />
         </Providers>
       </body>
     </html>

@@ -76,7 +76,7 @@ export function CookieBanner() {
         <div role="dialog" aria-label="Cookie consent" className="bg-card fixed inset-x-4 bottom-4 z-50 mx-auto max-w-3xl rounded-xl border p-4 shadow-lg md:inset-x-auto md:right-4 md:left-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <p className="text-sm">
-              We use necessary cookies to run Veyraflow. Analytics cookies are optional and only set with your consent.{" "}
+              We use necessary cookies to run Veyraflow. Analytics cookies (Google Analytics) are optional and only set with your consent.{" "}
               <a href="/cookies" className="underline">
                 Cookie Policy
               </a>
@@ -109,7 +109,7 @@ export function CookieBanner() {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Analytics</Label>
-                <p className="text-muted-foreground text-xs">Anonymous usage statistics (loaded only after consent).</p>
+                <p className="text-muted-foreground text-xs">Google Analytics usage statistics — pages visited and features used (loaded only after consent).</p>
               </div>
               <Switch checked={analytics} onCheckedChange={setAnalytics} />
             </div>

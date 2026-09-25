@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { GoogleButton } from "@/components/auth/google-button";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Alert, AlertDescription } from "@/components/ui/primitives";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { post } from "@/lib/client/api";
+import { track } from "@/lib/analytics";
 
 function LoginForm() {
   const router = useRouter();
@@ -32,6 +32,7 @@ function LoginForm() {
       else toast.error("Invalid e-mail or password");
       return;
     }
+    track("login", { method: "email" });
     router.replace(next.startsWith("/") ? next : "/app");
     router.refresh();
   };
@@ -90,10 +91,6 @@ function LoginForm() {
         <Button type="submit" disabled={busy}>
           {busy ? "Signing in…" : "Sign in"}
         </Button>
-        <div className="text-muted-foreground flex items-center gap-2 text-xs">
-          <span className="bg-border h-px flex-1" /> or <span className="bg-border h-px flex-1" />
-        </div>
-        <GoogleButton next={next} />
       </form>
     </AuthShell>
   );

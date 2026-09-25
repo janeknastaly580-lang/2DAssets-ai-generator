@@ -9,14 +9,19 @@ const supabaseHost = (() => {
   }
 })();
 
+// SPEC §21.6 — Google Analytics 4 hosts (Google's documented CSP for gtag.js), only when GA is configured.
+const ga = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
+  ? { script: " https://*.googletagmanager.com", img: " https://*.google-analytics.com https://*.googletagmanager.com", connect: " https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com" }
+  : { script: "", img: "", connect: "" };
+
 // SPEC §22 — security headers. CSP is report-friendly in dev (Next dev needs eval/inline).
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} https://js.stripe.com`,
+  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} https://js.stripe.com${ga.script}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.r2.cloudflarestorage.com",
+  `img-src 'self' data: blob: https://*.r2.cloudflarestorage.com${ga.img}`,
   "media-src 'self' blob: https://*.r2.cloudflarestorage.com",
-  `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://api.stripe.com https://*.r2.cloudflarestorage.com${isProd ? "" : " ws://localhost:* http://localhost:*"}`,
+  `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://api.stripe.com https://*.r2.cloudflarestorage.com${ga.connect}${isProd ? "" : " ws://localhost:* http://localhost:*"}`,
   "frame-src https://js.stripe.com https://checkout.stripe.com",
   "font-src 'self' data:",
   "worker-src 'self' blob:",

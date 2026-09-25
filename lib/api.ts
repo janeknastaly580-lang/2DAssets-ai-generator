@@ -4,6 +4,7 @@ import { ZodError, type ZodType } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin, ConfigError } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
+import { reportErrorLater } from "@/lib/errorReporting";
 import type { Database } from "@/lib/supabase/database.types";
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -25,7 +26,7 @@ export function ok<T>(data: T, init?: ResponseInit) {
   return NextResponse.json({ ok: true, data }, init);
 }
 
-export function fail(err: unknown) {
+export function fail(err: unknown, req?: NextRequest) {
   if (err instanceof ApiError) {
     return NextResponse.json(
       { ok: false, error: { code: err.code, message: err.message, details: err.details } },
@@ -42,6 +43,10 @@ export function fail(err: unknown) {
     return NextResponse.json({ ok: false, error: { code: "not_configured", message: err.message } }, { status: 503 });
   }
   console.error("[api] unhandled error", err);
+  reportErrorLater(err, {
+    where: req ? `api ${req.method} ${req.nextUrl.pathname}` : "api",
+    httpRequest: req && { method: req.method, url: req.url, userAgent: req.headers.get("user-agent") ?? undefined, referrer: req.headers.get("referer") ?? undefined, responseStatusCode: 500 },
+  });
   const message = env.IS_DEV && err instanceof Error ? err.message : "Something went wrong";
   return NextResponse.json({ ok: false, error: { code: "internal_error", message } }, { status: 500 });
 }
@@ -52,7 +57,7 @@ export function handler<Ctx>(fn: (req: NextRequest, ctx: Ctx) => Promise<Respons
     try {
       return await fn(req, ctx);
     } catch (e) {
-      return fail(e);
+      return fail(e, req);
     }
   };
 }

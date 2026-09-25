@@ -8,6 +8,7 @@ import { OtpInput } from "@/components/auth/otp-input";
 import { Button } from "@/components/ui/button";
 import { post } from "@/lib/client/api";
 import { PENDING_SIGNUP_KEY } from "@/lib/client/constants";
+import { track } from "@/lib/analytics";
 
 function VerifyForm() {
   const router = useRouter();
@@ -36,6 +37,7 @@ function VerifyForm() {
       }
       const res = await post<{ next: string }>("/api/auth/verify-signup", { email, code, password });
       sessionStorage.removeItem(PENDING_SIGNUP_KEY);
+      track("sign_up", { method: "email" });
       toast.success("E-mail verified");
       router.replace(res.next);
       router.refresh();

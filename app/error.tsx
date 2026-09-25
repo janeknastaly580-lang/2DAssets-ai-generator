@@ -1,8 +1,14 @@
 "use client";
 
+import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { reportClientError } from "@/lib/client/reportError";
 
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  // errors with a digest were thrown while rendering on the server and are reported by instrumentation.ts
+  React.useEffect(() => {
+    if (!error.digest) reportClientError(error, "boundary");
+  }, [error]);
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
       <h1 className="text-2xl font-semibold">Something went wrong</h1>

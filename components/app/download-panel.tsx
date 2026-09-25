@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/primitives";
 import { Select } from "@/components/ui/overlays";
 import { api, post } from "@/lib/client/api";
+import { track } from "@/lib/analytics";
 import { formatBytes } from "@/lib/utils";
 import { fileMatchesPreset, readmeFor } from "@/lib/postprocess/enginePresets";
 import { ENGINE_PRESETS, type EnginePreset } from "@/lib/validation/misc";
@@ -24,6 +25,7 @@ export function DownloadPanel({ assetId, assetType, files, metadata, defaultPres
   const downloadFile = async (fileId: string) => {
     try {
       const res = await api<{ url: string }>(`/api/assets/${assetId}/download?file=${fileId}`);
+      track("download_asset", { asset_type: assetType, download_kind: "file" });
       window.location.href = res.url;
     } catch (e) {
       toast.error((e as Error).message);
@@ -38,6 +40,7 @@ export function DownloadPanel({ assetId, assetType, files, metadata, defaultPres
         await new Promise((r) => setTimeout(r, 1500));
         const st = await api<{ status: string; url: string | null; error: string | null }>(`/api/downloads/${dl.id}`);
         if (st.status === "ready" && st.url) {
+          track("download_asset", { asset_type: assetType, download_kind: "zip", engine_preset: preset });
           window.location.href = st.url;
           setZipState("ready");
           return;

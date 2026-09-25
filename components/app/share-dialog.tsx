@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/primitives";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Select, Switch } from "@/components/ui/overlays";
 import { post } from "@/lib/client/api";
+import { track } from "@/lib/analytics";
 
 /** SPEC §18 — create a private link; the URL is shown once. */
 export function ShareDialog({ open, onOpenChange, target }: { open: boolean; onOpenChange: (o: boolean) => void; target: { type: "asset" | "project"; id: string } }) {
@@ -35,6 +36,7 @@ export function ShareDialog({ open, onOpenChange, target }: { open: boolean; onO
         expires_in_days: expires === "never" ? null : Number(expires),
       });
       setUrl(res.url);
+      track("share", { method: "link", content_type: target.type });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/overlays";
 import { post } from "@/lib/client/api";
 
-/** SPEC §5.2 / §21.2 — blocking Terms acceptance (first Google sign-in or new ToS version). */
+/** SPEC §21.2 — blocking Terms acceptance when the accepted ToS version is outdated or missing. */
 export function TosModal({ version }: { version: string }) {
   const router = useRouter();
   const [checked, setChecked] = React.useState(false);

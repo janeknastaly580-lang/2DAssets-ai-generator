@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { GoogleButton } from "@/components/auth/google-button";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/primitives";
 import { Checkbox } from "@/components/ui/overlays";
@@ -90,10 +89,6 @@ export default function SignupPage() {
         <Button type="submit" disabled={busy}>
           {busy ? "Creating account…" : "Create account"}
         </Button>
-        <div className="text-muted-foreground flex items-center gap-2 text-xs">
-          <span className="bg-border h-px flex-1" /> or <span className="bg-border h-px flex-1" />
-        </div>
-        <GoogleButton />
       </form>
     </AuthShell>
   );

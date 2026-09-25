@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { storage, storageKeys } from "@/lib/storage";
 import { fileMatchesPreset, readmeFor } from "@/lib/postprocess/enginePresets";
 import { slugify } from "@/lib/utils";
+import { reportError } from "@/lib/errorReporting";
 import type { EnginePreset } from "@/lib/validation/misc";
 
 export const MAX_ZIP_BYTES = 200 * 1024 * 1024;
@@ -61,5 +62,6 @@ export async function buildDownloadZip(downloadId: string): Promise<void> {
       .eq("id", downloadId);
   } catch (e) {
     await db.from("downloads").update({ status: "failed", error: (e as Error).message.slice(0, 300) }).eq("id", downloadId);
+    await reportError(e, { where: "download zip" });
   }
 }

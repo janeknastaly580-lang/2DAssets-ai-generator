@@ -7,6 +7,7 @@ import { CreditCardIcon, ExternalLinkIcon, SparklesIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Progress, Skeleton, Table, TBody, TD, TH, THead, TR } from "@/components/ui/primitives";
 import { post } from "@/lib/client/api";
+import { track } from "@/lib/analytics";
 import { useBillingSummary } from "@/hooks/use-data";
 import { PLANS } from "@/lib/plans";
 import { daysUntil, formatBytes, formatDateTime } from "@/lib/utils";
@@ -44,6 +45,7 @@ function BillingInner() {
     setBusy(kind);
     try {
       const res = await post<{ url: string }>("/api/billing/checkout", { workspace_id: data.workspace.id, kind });
+      track("begin_checkout", { checkout_kind: kind });
       window.location.href = res.url;
     } catch (e) {
       toast.error((e as Error).message);

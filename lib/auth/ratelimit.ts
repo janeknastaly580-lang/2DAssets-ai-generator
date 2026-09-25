@@ -27,4 +27,5 @@ export const LIMITS = {
   jobsPerUser: { window: 3600, limit: 60 },
   sharePerIp: { window: 60, limit: 60 },
   uploadsPerUser: { window: 3600, limit: 30 },
+  clientErrorsPerIp: { window: 60, limit: 20 },
 } as const;

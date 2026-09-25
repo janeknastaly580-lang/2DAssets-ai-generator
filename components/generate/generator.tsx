@@ -13,6 +13,7 @@ import { AssetPreview } from "@/components/preview/asset-preview";
 import { AssetThumb } from "@/components/app/asset-card";
 import { JobStatusBadge } from "@/components/app/job-status";
 import { api, post, ApiClientError } from "@/lib/client/api";
+import { track } from "@/lib/analytics";
 import { useAssets, useCreateJob, useProjects, useInvalidate, type AssetFile, type AssetRow, type JobRow } from "@/hooks/use-data";
 import { useJobFeed } from "@/hooks/use-job-feed";
 import { ASSET_TYPE_LABELS, relativeTime } from "@/lib/utils";
@@ -150,6 +151,7 @@ export function Generator({ type, plan, canGenerate, disabledReason, initialProj
     try {
       const res = await create.mutateAsync({ type, project_id: projectId, input: toInput(type, value) });
       toast.success(`Job started · ${res.estimate.credits} credits reserved`);
+      track("generate_asset", { asset_type: type, credits: res.estimate.credits });
       invalidate("jobs", "balance");
       router.refresh();
     } catch (e) {

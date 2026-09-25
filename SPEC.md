@@ -10,7 +10,7 @@
 
 ## Spis treści
 
-0. [Stan wdrożenia (2026-09-23)](#0-stan-wdrożenia-2026-09-23)
+0. [Stan wdrożenia (2026-09-24)](#0-stan-wdrożenia-2026-09-24)
 1. [Cel i zakres produktu](#1-cel-i-zakres-produktu)
 2. [Decyzje projektowe (skrót)](#2-decyzje-projektowe-skrót)
 3. [Architektura systemu](#3-architektura-systemu)
@@ -42,7 +42,7 @@
 
 ---
 
-## 0. Stan wdrożenia (2026-09-23)
+## 0. Stan wdrożenia (2026-09-24)
 
 Sekcja opisuje **faktyczny stan** projektu po pierwszej implementacji. Reszta dokumentu opisuje docelowy kształt; tam, gdzie implementacja różni się od pierwotnego projektu, jest to zaznaczone w odpowiedniej sekcji.
 
@@ -50,7 +50,7 @@ Sekcja opisuje **faktyczny stan** projektu po pierwszej implementacji. Reszta do
 
 | Obszar | Stan |
 |---|---|
-| **Kod aplikacji** (Next.js 15.5, React 19, TS 5.9, Tailwind 4, zod 4) | napisany w całości wg §4.2; `pnpm typecheck`, `pnpm test` (33 testy, stan 2026-09-23), `pnpm build`, `pnpm check:public-env` przechodzą. **Test E2E na localhost (2026-09-20, z kluczem service role, tryb mock)**: rejestracja → e-mail `signin` przez Resend → weryfikacja kodem → sesja → projekt ze style guide'em (pixel art, zablokowana paleta) → wycena → joby: image ×2 (pixel-art 32 px, paleta 16 kolorów), sprite_animation (idle+walk, right+left → sheet, atlas 32 klatek, `.tres`, 4 GIF-y, ZIP), model_3d (GLB/GLTF/OBJ), sfx, music (+loop), voice (2 kwestie + ZIP); prompt naruszający politykę → `rejected` bez naliczenia + `moderation_events`; księga: rezerwacja → rozliczenie, saldo 500 → 395 zgodne; pobieranie pojedynczych plików i ZIP projektu (preset Godot, README_GODOT.md, MANIFEST.json); link udostępniania (`/s/<token>`, pobieranie); panel admina (wszystkie zakładki, `translated_prompt` widoczny tylko tam); UI: generator (wycena na żywo, Generate, podgląd wyniku), biblioteka, sprite player, viewer 3D, billing, ustawienia. Konto testowe usunięte po teście |
+| **Kod aplikacji** (Next.js 15.5, React 19, TS 5.9, Tailwind 4, zod 4) | napisany w całości wg §4.2; `pnpm typecheck`, `pnpm test` (44 testy, stan 2026-09-24), `pnpm build`, `pnpm check:public-env`, `pnpm lint` przechodzą. **Test E2E na localhost (2026-09-20, z kluczem service role, tryb mock)**: rejestracja → e-mail `signin` przez Resend → weryfikacja kodem → sesja → projekt ze style guide'em (pixel art, zablokowana paleta) → wycena → joby: image ×2 (pixel-art 32 px, paleta 16 kolorów), sprite_animation (idle+walk, right+left → sheet, atlas 32 klatek, `.tres`, 4 GIF-y, ZIP), model_3d (GLB/GLTF/OBJ), sfx, music (+loop), voice (2 kwestie + ZIP); prompt naruszający politykę → `rejected` bez naliczenia + `moderation_events`; księga: rezerwacja → rozliczenie, saldo 500 → 395 zgodne; pobieranie pojedynczych plików i ZIP projektu (preset Godot, README_GODOT.md, MANIFEST.json); link udostępniania (`/s/<token>`, pobieranie); panel admina (wszystkie zakładki, `translated_prompt` widoczny tylko tam); UI: generator (wycena na żywo, Generate, podgląd wyniku), biblioteka, sprite player, viewer 3D, billing, ustawienia. Konto testowe usunięte po teście |
 | **Supabase** | projekt **`2DAssets`**, ref `lhwvkhdsoozvsftwhcif`, region `eu-central-1`, Postgres 17.6. Zaaplikowano 11 migracji z `supabase/migrations/` (nazwy w projekcie: `veyraflow_0001_extensions_enums` … `veyraflow_0011_grants`) + seed `model_pricing` (21 wierszy) i `feature_flags` (9); potem migracja `immediate_account_deletion` (= plik `20260922000012`) i **2026-09-23 `veyraflow_0013_fal_models`** (= plik `20260923000013_fal_models.sql`: cennik pod fal.ai — obecnie **11 wierszy** `model_pricing`, flaga muzyki bez `provider`). Publikacja Realtime zawiera `job_status_feed`. Linter bezpieczeństwa: bez ostrzeżeń poziomu ERROR (jedyne INFO to tabele z RLS bez polityk = celowo tylko service role) |
 | **Supabase — test** | wykonano test SQL: trigger `handle_new_user` (profil + workspace + Scratch + balances), `grant_credits` z idempotencją, `reserve_credits` / `settle_job_credits` (kolejność trial → subscription → purchased), `reset_subscription_credits`, sync `job_status_feed`, kaskadowe usunięcie konta — OK. **Uwaga (migracja 0011)**: w tym projekcie role `anon`/`authenticated`/`service_role` nie dostają domyślnie uprawnień DML na nowych tabelach (tylko REFERENCES/TRIGGER/TRUNCATE) — granty są nadawane jawnie, a `alter default privileges for role postgres` obejmuje przyszłe tabele/sekwencje/funkcje dla `service_role`. Przy dodawaniu tabel czytanych przez klienta trzeba dodać `grant … to authenticated` |
 | **Resend** | **domena produkcyjna `veyraflow.eu`** — verified (eu-west-1), dodana 2026-09-22; cała wysyłka idzie z `EMAIL_FROM="Veyraflow <website@veyraflow.eu>"`. Starsza domena `comitraapp.pl` nadal jest w koncie, ale nieużywana. 7 opublikowanych szablonów: `signin`, `preset` (oba **przeprojektowane 2026-09-22** — ciemny brandowany layout z dużym kodem, ta sama logika, aliasy, ID, tematy i zmienne), `workspace-invite`, `assets-expiring`, `moderation-warning`, `account-banned`, `data-export-ready`. Szablony `job-completed` i `account-deletion-scheduled` **usunięte z konta przez właściciela 2026-09-22 i nieodtwarzane** — te dwa e-maile są renderowane inline w kodzie (§20.3). Klucz API **`veyraflow-app-sending-eu`** (sending access, ograniczony do `veyraflow.eu`) utworzony przez właściciela i wpisany do `.env.local` jako `RESEND_API_KEY` — **wysyłka potwierdzona testem 2026-09-22 (HTTP 200 dla `signin` i `preset`)**; poprzedni klucz `veyraflow-app-sending` jest ograniczony do `comitraapp.pl` i zwraca 403 przy wysyłce z `veyraflow.eu` (do usunięcia). Alias `account-deleted` renderowany inline zastąpił `account-deletion-scheduled` (§21.5) |
@@ -59,14 +59,16 @@ Sekcja opisuje **faktyczny stan** projektu po pierwszej implementacji. Reszta do
 | **Dostawcy AI** | **2026-09-23: `FAL_KEY` wpisany do `.env.local`, `MOCK_PROVIDERS=false` w `.env`** — wszystkie 4 generatory (3D, SFX, muzyka, głos) wołają prawdziwe modele fal.ai (§9.7). `OPENAI_API_KEY` pusty → **LLM tłumacza jeszcze niepodłączony**: tłumacz = identyczność (+ style guide), moderacja = lista słów, `model_params` puste (parametry spoza UI = domyślne wartości dostawcy). Klucz fal zweryfikowany (uwierzytelnienie działa), ale **konto fal.ai ma wyczerpane saldo** (`403 User is locked. Reason: Exhausted balance`) — prawdziwe generacje ruszą po doładowaniu (§0.3 pkt 9). Meshy i bezpośrednie ElevenLabs usunięte z projektu (kod, env, webhook) |
 | **Inngest / Modal** | brak kluczy — kolejka działa **inline** w procesie Next.js (`lib/queue/dispatch.ts`, §14.1); worker Modal ma kod w `worker/`, nie jest wdrożony |
 | **Vercel** | **2026-09-24: projekt `asset-generator`** (ID `prj_H6G7LFOahjC7fjpNghC1jdOxdzRA`; nazwa „Asset generator” odrzucona przez Vercel — nazwy projektów muszą być małymi literami bez spacji), konto/team `janeknastaly580-langs-projects` (`team_5ghyU9jSaokV9cFz0Ug9VIDZ`), plan **Hobby**. Podpięty pod repo GitHub **`janeknastaly580-lang/2DAssets-ai-generator`** — push na `main` = deploy Production. Framework Next.js, Node **24.x** (`engines.node: ">=22"` → Vercel wybiera najnowszą pasującą wersję), **Fluid compute ON**, region funkcji **`fra1`** (ustawienie projektu + `vercel.json`), `maxDuration = 300` w `/api/inngest`, `/api/jobs`, `/api/downloads`. Domena produkcyjna: **`https://asset-generator-tawny.vercel.app`**. Deployment Protection: domyślne *Standard* (`all_except_custom_domains`). **Zmienne środowiskowe celowo NIE są wpisane (decyzja właściciela 2026-09-24)** — build przechodzi bez nich, ale w runtime: strony zwracają 500 `MIDDLEWARE_INVOCATION_FAILED` (middleware tworzy klienta Supabase z `NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY`), endpointy `/api/*` wymagające bazy zwracają 500 `internal_error`, POST-y odrzucane jako `bad_origin` (`APP_URL` domyślnie `localhost`), `/api/inngest` → 401. Dokończenie: §0.3 pkt 13. Pliki `.env`, `.env.local`, `.env.example` pozostają w `.gitignore` i nie ma ich w repozytorium |
+| **Google Analytics 4** | **2026-09-24: kod gotowy** (§21.6) — gtag.js ładowany dopiero po zgodzie „Analytics” z banera cookies, ręczne `page_view` z oczyszczonym URL-em, zdarzenia `login`, `sign_up`, `generate_asset`, `begin_checkout`, `download_asset`, `share`; CSP rozszerzany o domeny Google tylko przy ustawionym ID. **Brak `NEXT_PUBLIC_GA_MEASUREMENT_ID`** (właściwość GA4 jeszcze nie istnieje) → wszystko jest no-opem. Uruchomienie: §0.3 pkt 14, §23.9 |
+| **Raportowanie błędów** | **2026-09-24: kod gotowy** — Google Cloud Error Reporting zamiast Firebase Crashlytics (Crashlytics nie ma SDK dla weba, §25.4): błędy serwera (`onRequestError`, 500-ki z `handler()`, nieudane joby, kolejka, ZIP, webhook Stripe) i przeglądarki (`/api/client-errors`). **Brak `GCP_PROJECT_ID` / `GCP_ERROR_REPORTING_API_KEY`** → no-op. Uruchomienie: §0.3 pkt 15, §23.10 |
 | **Dokumenty prawne** | placeholdery w `docs/legal/*.md` (status `draft`), renderowane na `/terms`, `/privacy`, `/cookies`, `/ai-disclosure`, `/impressum` |
 
 ### 0.2 Zmienne środowiskowe — gdzie co wpisać
 
 Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w **Next.js** (Route Handlers / Server Actions), nie w Supabase Edge Functions. Dlatego:
 
-- **`.env`** (w `.gitignore` od 2026-09-23 — nie trafia do repozytorium, choć zawiera tylko wartości jawne) — **wyłącznie wartości jawne**: `NEXT_PUBLIC_*` (URL aplikacji, URL Supabase, klucz publishable) oraz serwerowe nie-sekrety (`APP_URL`, `TOS_VERSION`, `SUPPORT_EMAIL`, `TRIAL_CREDITS`, `MOCK_PROVIDERS`, `INNGEST_DEV`, `PROMPT_TRANSLATOR_MODEL`, `MODERATION_MODEL`, `R2_BUCKET`, `R2_ENDPOINT`, `EMAIL_FROM`, `STRIPE_PRICE_*`, `MODAL_WORKER_URL`). Na Vercelu to zwykłe zmienne środowiskowe.
-- **`.env.local`** (gitignore) — **wyłącznie sekrety**: `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `AUTH_CODE_PEPPER`, klucze AI, `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `INNGEST_*`, `MODAL_WORKER_TOKEN`, `WORKER_WEBHOOK_SECRET`, `FAL_WEBHOOK_SECRET`, `SENTRY_DSN`. Klucze AI to tylko `OPENAI_API_KEY` i `FAL_KEY` (`MESHY_API_KEY`, `ELEVENLABS_API_KEY`, `MESHY_WEBHOOK_SECRET` usunięte 2026-09-23). Plik istnieje z wygenerowanymi `AUTH_CODE_PEPPER`, `WORKER_WEBHOOK_SECRET`, `MODAL_WORKER_TOKEN` i wpisanym `RESEND_API_KEY`. Na Vercelu każda z tych zmiennych ma być oznaczona **„Sensitive”** (Vercel szyfruje i nigdy nie pokazuje wartości). `SUPABASE_SERVICE_ROLE_KEY` wklejony przez właściciela (2026-09-20). Next.js łączy oba pliki; `.env.local` nadpisuje `.env`.
+- **`.env`** (w `.gitignore` od 2026-09-23 — nie trafia do repozytorium, choć zawiera tylko wartości jawne) — **wyłącznie wartości jawne**: `NEXT_PUBLIC_*` (URL aplikacji, URL Supabase, klucz publishable, `NEXT_PUBLIC_GA_MEASUREMENT_ID` — ID pomiaru GA4 nie jest sekretem, i tak trafia do przeglądarki) oraz serwerowe nie-sekrety (`APP_URL`, `TOS_VERSION`, `SUPPORT_EMAIL`, `TRIAL_CREDITS`, `MOCK_PROVIDERS`, `INNGEST_DEV`, `PROMPT_TRANSLATOR_MODEL`, `MODERATION_MODEL`, `R2_BUCKET`, `R2_ENDPOINT`, `EMAIL_FROM`, `STRIPE_PRICE_*`, `MODAL_WORKER_URL`, `GCP_PROJECT_ID`). Na Vercelu to zwykłe zmienne środowiskowe.
+- **`.env.local`** (gitignore) — **wyłącznie sekrety**: `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `AUTH_CODE_PEPPER`, klucze AI, `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `INNGEST_*`, `MODAL_WORKER_TOKEN`, `WORKER_WEBHOOK_SECRET`, `FAL_WEBHOOK_SECRET`, `GCP_ERROR_REPORTING_API_KEY` (§25.4; lokalny plik ma jeszcze nieużywaną pozostałość `SENTRY_DSN` — Sentry nie jest używany). Klucze AI to tylko `OPENAI_API_KEY` i `FAL_KEY` (`MESHY_API_KEY`, `ELEVENLABS_API_KEY`, `MESHY_WEBHOOK_SECRET` usunięte 2026-09-23). Plik istnieje z wygenerowanymi `AUTH_CODE_PEPPER`, `WORKER_WEBHOOK_SECRET`, `MODAL_WORKER_TOKEN` i wpisanym `RESEND_API_KEY`. Na Vercelu każda z tych zmiennych ma być oznaczona **„Sensitive”** (Vercel szyfruje i nigdy nie pokazuje wartości). `SUPABASE_SERVICE_ROLE_KEY` wklejony przez właściciela (2026-09-20). Next.js łączy oba pliki; `.env.local` nadpisuje `.env`.
 - Żadna z powyższych zmiennych serwerowych nie trafia do bundla przeglądarki — tam idą tylko `NEXT_PUBLIC_*`; pilnuje tego `pnpm check:public-env` (§22).
 - **Supabase Secrets (Edge Functions)** — **nie są potrzebne**; projekt nie używa Edge Functions. Jeśli w przyszłości część logiki trafi do Edge Functions, do `supabase secrets set` trafią te same zmienne serwerowe z §24.
 - **Vercel** (projekt `asset-generator`, §0.1) — wszystkie zmienne z §24, sekrety oznaczone „Sensitive”. **Stan 2026-09-24: żadna zmienna nie jest wpisana** (decyzja właściciela); instrukcja — §0.3 pkt 13.
@@ -74,8 +76,8 @@ Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w
 ### 0.3 Czynności ręczne (właściciel)
 
 1. ~~**Supabase → Project Settings → API Keys**: skopiować `service_role` do `.env.local`~~ — zrobione 2026-09-20 (bez tego klucza signup/generacje zwracają 503 `not_configured`).
-2. **Supabase → Authentication → Providers → Email**: `Confirm email` = ON; **Google**: włączyć, wkleić Client ID/Secret z Google Cloud Console (OAuth client, redirect `https://lhwvkhdsoozvsftwhcif.supabase.co/auth/v1/callback`).
-3. **Supabase → Authentication → URL Configuration**: Site URL `http://localhost:3000`; Redirect URLs: `http://localhost:3000/auth/callback` (później produkcyjne).
+2. **Supabase → Authentication → Providers → Email**: `Confirm email` = ON. **Google — NIE włączać** (logowanie Google usunięte z aplikacji 2026-09-24, §5); jeśli provider Google jest włączony w dashboardzie, wyłączyć go (Providers → Google → *Enable Sign in with Google* = OFF).
+3. **Supabase → Authentication → URL Configuration**: Site URL `http://localhost:3000` (produkcyjnie `APP_URL`). Redirect URLs **nie są potrzebne** — aplikacja nie używa OAuth ani linków e-mail Supabase (od 2026-09-24 nie ma trasy `/auth/callback`); wpisy `…/auth/callback`, jeśli są, można usunąć.
 4. **Supabase → Authentication → Passwords / Security**: min. długość 10, „Leaked password protection” ON; **Sessions**: JWT expiry 3600 s, refresh token rotation ON.
 5. **Supabase → Authentication → SMTP (opcjonalnie)**: własne e-maile Supabase nie są używane, ale żeby domyślne (np. zmiana e-maila w przyszłości) szły przez Resend: host `smtp.resend.com`, port 465, user `resend`, password = klucz API Resend, sender `website@veyraflow.eu`.
 6. **Admin**: po pierwszej rejestracji `update public.profiles set role = 'admin' where email = '…';` (SQL Editor).
@@ -94,9 +96,11 @@ Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w
     2. Na Vercelu ustawić inaczej niż lokalnie: `APP_URL` i `NEXT_PUBLIC_APP_URL` = `https://asset-generator-tawny.vercel.app` (lub docelowo `https://veyraflow.eu`) — bez tego wszystkie POST-y są odrzucane jako `bad_origin`, a linki w e-mailach prowadzą na localhost.
     3. Bez `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY` (pkt 7) uploady i generacje na Vercelu **nie zadziałają** — sterownik lokalny (`.data/storage`) wymaga zapisywalnego, trwałego dysku, którego funkcje Vercela nie mają.
     4. **Deployments** → ostatni deployment → **⋯ → Redeploy** (zmienne `NEXT_PUBLIC_*` są wkompilowywane w build, więc sam zapis zmiennych nie wystarczy).
-    5. Supabase → **Authentication → URL Configuration**: Site URL = produkcyjny `APP_URL`; Redirect URLs: dodać `https://asset-generator-tawny.vercel.app/auth/callback` oraz `https://*-janeknastaly580-langs-projects.vercel.app/auth/callback` (preview), zostawić `http://localhost:3000/auth/callback`.
+    5. Supabase → **Authentication → URL Configuration**: Site URL = produkcyjny `APP_URL` (Redirect URLs niepotrzebne — brak OAuth, pkt 3).
     6. R2 CORS (§23.2 pkt 3): dodać origin `https://asset-generator-tawny.vercel.app`.
     7. Plan Hobby jest wyłącznie do użytku niekomercyjnego — przed włączeniem płatności Stripe przejść na **Pro**. Na Hobby kolejka inline (bez Inngest) ma limit 300 s na job; dłuższe generacje (np. Rodin) wymagają Inngest (§23.6).
+14. **Google Analytics 4** — utworzyć właściwość i strumień sieciowy, ustawić strumień (wyłączone „Page changes based on browser history events”, „Outbound clicks” i „File downloads”, redakcja danych), wpisać `NEXT_PUBLIC_GA_MEASUREMENT_ID` na Vercelu i zrobić redeploy — pełna instrukcja w §23.9.
+15. **Google Cloud Error Reporting** (zamiast Crashlytics) — projekt Google Cloud, włączone Error Reporting API, klucz API ograniczony do tego API, `GCP_PROJECT_ID` + `GCP_ERROR_REPORTING_API_KEY` na Vercelu, redeploy, powiadomienia e-mail — pełna instrukcja w §23.10.
 
 ### 0.4 Odstępstwa od pierwotnego projektu (uzasadnione lokalnym uruchomieniem)
 
@@ -153,7 +157,7 @@ Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w
 | Audio | przez fal.ai: ElevenLabs Sound Effects v2 (SFX), Google Lyria 3 Pro (muzyka), ElevenLabs TTS Turbo v2.5 (głos) |
 | Tłumacz promptów | OpenAI, model `gpt-5.6-luna` (nazwa podana przez właściciela; dokładne ID modelu zweryfikować w dokumentacji OpenAI przed implementacją; konfigurowalne przez env). Oprócz promptu ustawia **parametry modeli, których nie ma w UI** (`model_params`, §8.3, §9.7). **Jeszcze niepodłączony** (brak `OPENAI_API_KEY`) |
 | Moderacja promptów | tani LLM OpenAI (np. najtańszy aktualny model klasy „nano/mini”; konfigurowalne przez env) |
-| Logowanie | e-mail + hasło (rejestracja z 6-cyfrowym kodem) lub Google; reset hasła 8-cyfrowym kodem |
+| Logowanie | wyłącznie e-mail + hasło (rejestracja z 6-cyfrowym kodem); reset hasła 8-cyfrowym kodem. Logowanie Google usunięte 2026-09-24 |
 | Sharing | prywatne linki z tokenem do assetu/projektu (bez galerii publicznej) |
 | Zespoły | workspace'y zespołowe ze wspólnymi projektami i kredytami (plan Studio) |
 | Moderacja wyników | **brak** (polegamy na dostawcach) |
@@ -222,6 +226,8 @@ Zasady przepływu:
 | Atlas | własny packer siatkowy (grid) + eksport JSON (TexturePacker hash/array) + generator `.tres` |
 | 3D podgląd w UI | `three` + `@react-three/fiber` + `@react-three/drei` (GLB viewer, turntable, wireframe, klipy). Bez `<Environment preset>` drei — pobiera HDRI z obcego CDN, co blokuje CSP (§22); oświetlenie lokalne |
 | Audio w UI | `wavesurfer.js` |
+| Analityka | Google Analytics 4 przez gtag.js wstrzykiwany ręcznie (`lib/analytics.ts`, bez paczki npm i bez Firebase SDK), tylko po zgodzie (§21.6) |
+| Raportowanie błędów | Google Cloud Error Reporting przez REST API (`fetch` + klucz API, bez SDK) — `lib/errorReporting.ts`, `instrumentation.ts` (§25.4) |
 | Testy | Vitest 5 (unit, `tests/*.test.ts`); Playwright/msw — do dodania (§25.2) |
 | Lint | ESLint 9 flat config (`next/core-web-vitals`, `next/typescript`), Prettier |
 | Worker | Python 3.11, Modal, Animated Drawings (Meta, Apache-2.0), Blender 4.1 headless, ffmpeg, Pillow, numpy — kod w `worker/`, niewdrożony |
@@ -241,12 +247,11 @@ Zasady przepływu:
 ├── vercel.json                      ← Vercel: framework nextjs, regions ["fra1"] (§23.3)
 ├── middleware.ts                    ← odświeżanie sesji Supabase + guardy /app, /admin, ban (§5.2, §5.4)
 ├── app/
-│   ├── layout.tsx, globals.css      ← root layout (Providers: next-themes, TanStack Query, sonner) + CookieBanner
-│   ├── not-found.tsx, error.tsx
+│   ├── layout.tsx, globals.css      ← root layout (Providers: next-themes, TanStack Query, sonner) + CookieBanner + Analytics
+│   ├── not-found.tsx, error.tsx, global-error.tsx (error boundaries → raport błędu, §25.4)
 │   ├── (marketing)/                 ← layout z SiteHeader/SiteFooter; page.tsx (landing), pricing/, terms/, privacy/,
 │   │                                   cookies/, ai-disclosure/, impressum/, contact/
 │   ├── (auth)/                      ← login/, signup/, verify/, forgot-password/, reset-password/
-│   ├── auth/callback/route.ts       ← OAuth callback (Google)
 │   ├── banned/page.tsx  invite/[token]/page.tsx  s/[token]/page.tsx
 │   ├── app/                         ← layout.tsx (AppShell) + page.tsx (dashboard), projects/, projects/[id]/,
 │   │                                   generate/[type]/ (model_3d, audio_sfx, audio_music, audio_voice), library/, assets/[id]/, jobs/, billing/, settings/, workspaces/new/
@@ -254,14 +259,14 @@ Zasady przepływu:
 │   │                                   moderation/, audit/
 │   └── api/                         ← Route Handlers (§16): auth/*, workspaces/*, invites/*, projects/*, jobs/*, assets/*,
 │                                       downloads/*, uploads/*, files (lokalny storage), billing/*, share/*, s/[token],
-│                                       account, admin/*, webhooks/{stripe,fal,worker}, inngest
+│                                       account, admin/*, webhooks/{stripe,fal,worker}, inngest, client-errors (§25.4)
 ├── components/
 │   ├── ui/                          ← button.tsx, primitives.tsx (Input, Textarea, Label, Badge, Card, Table, Alert, Progress,
 │   │                                   Skeleton, Avatar…), overlays.tsx (Dialog, DropdownMenu, Tooltip, Select, Tabs, Switch,
 │   │                                   Checkbox, Slider) — na pakiecie `radix-ui`
-│   ├── providers.tsx, theme-toggle.tsx, cookie-banner.tsx (ConsentManager), logo.tsx
+│   ├── providers.tsx, theme-toggle.tsx, cookie-banner.tsx (ConsentManager), analytics.tsx (GA4 po zgodzie, §21.6), error-reporter.tsx (globalne błędy JS, §25.4), logo.tsx
 │   ├── marketing/                   ← site-header, site-footer (§21.1), legal-document (§21.2)
-│   ├── auth/                        ← auth-shell, otp-input (6/8 cyfr), google-button
+│   ├── auth/                        ← auth-shell, otp-input (6/8 cyfr)
 │   ├── app/                         ← app-shell, sidebar (WorkspaceSwitcher + CreditBadge), topbar (⌘K, dzwonek),
 │   │                                   tos-modal, asset-card (AssetGrid), job-status (JobStatusBadge), active-jobs,
 │   │                                   download-panel, share-dialog
@@ -279,6 +284,8 @@ Zasady przepływu:
 │   ├── workspace.ts                 ← cookie `vf_ws`, role, read-only
 │   ├── plans.ts                     ← plany, pakiety, stałe (§11.3)
 │   ├── flags.ts, legal.ts, share.ts, sharePublic.ts, assets.ts, downloads.ts, dataExport.ts, maintenance.ts, webhooks.ts
+│   ├── analytics.ts                 ← GA4: enable/disable wg zgody, sanitizeUrl, trackPageView, track (§21.6)
+│   ├── errorReporting.ts            ← Google Cloud Error Reporting: reportError / reportErrorLater (§25.4)
 │   ├── supabase/                    ← browser.ts, server.ts, admin.ts (service role), middleware.ts, database.types.ts
 │   ├── auth/                        ← codes.ts (CSPRNG, SHA-256+pepper, constant-time), ratelimit.ts
 │   ├── credits/                     ← pricing.ts (wycena z `model_pricing`), ledger.ts (wrappery RPC)
@@ -292,7 +299,7 @@ Zasady przepływu:
 │   ├── storage/                     ← index.ts (wybór sterownika), r2.ts, local.ts, keys.ts
 │   ├── email/resend.ts              ← wysyłka: szablony Resend po ID + 2 e-maile renderowane inline (§20.3)
 │   ├── queue/dispatch.ts            ← Inngest lub inline
-│   ├── client/                      ← api.ts (fetch + upload presign→PUT→complete), constants.ts
+│   ├── client/                      ← api.ts (fetch + upload presign→PUT→complete), constants.ts, reportError.ts (błędy przeglądarki → /api/client-errors)
 │   └── validation/                  ← auth.ts, project.ts, jobs.ts, misc.ts (zod 4)
 ├── inngest/
 │   ├── client.ts                    ← katalog eventów
@@ -307,9 +314,10 @@ Zasady przepływu:
 │   ├── animated_drawings/           ← render_clips.py + motions/index.json (biblioteka klipów; pliki BVH do dodania)
 │   ├── blender/                     ← convert.py, turntable.py
 │   └── requirements.txt
+├── instrumentation.ts               ← Next.js onRequestError → Error Reporting (§25.4)
 ├── scripts/check-public-env.ts      ← test bezpieczeństwa env/bundla (§22)
 ├── scripts/check-r2.ts              ← round-trip PUT/HEAD/GET/presign/DELETE na R2 (§23.2)
-├── tests/                           ← postprocess.test.ts, validation.test.ts, email.test.ts, falModels.test.ts, stubs/
+├── tests/                           ← postprocess.test.ts, validation.test.ts, email.test.ts, falModels.test.ts, analytics.test.ts, errorReporting.test.ts, stubs/
 └── docs/legal/                      ← terms.md, privacy.md, cookies.md, ai-disclosure.md, impressum.md (placeholdery)
 ```
 
@@ -319,10 +327,9 @@ Zasady przepływu:
 
 Supabase Auth jest źródłem tożsamości (`auth.users`). Obsługiwane metody:
 
-1. **E-mail + hasło** (rejestracja z weryfikacją 6-cyfrowym kodem).
-2. **Google** (OAuth przez Supabase; e-mail uznany za zweryfikowany).
+1. **E-mail + hasło** (rejestracja z weryfikacją 6-cyfrowym kodem) — jedyna metoda.
 
-Nie ma magic linków, GitHuba, Discorda (roadmapa).
+Nie ma logowania Google (**usunięte 2026-09-24** decyzją właściciela: przycisk „Continue with Google”, komponent `google-button`, trasa `/auth/callback` i blok `[auth.external.google]` w `supabase/config.toml`), magic linków, GitHuba, Discorda. Aplikacja nie wywołuje `signInWithOAuth`/`exchangeCodeForSession`.
 
 ### 5.1 Rejestracja (e-mail + hasło) — 6-cyfrowy kod
 
@@ -345,14 +352,14 @@ Konfiguracja Supabase Auth: „Confirm email” = **włączone** (niezweryfikowa
 ### 5.2 Logowanie
 
 - `/login`: e-mail + hasło → `signInWithPassword` (klient Supabase SSR). Jeśli e-mail niezweryfikowany → komunikat i przycisk „Verify email” (ponowna wysyłka kodu, ten sam mechanizm co w §5.1).
-- Przycisk **„Continue with Google”** → `signInWithOAuth({ provider: 'google', redirectTo: APP_URL + '/auth/callback' })`. Callback wymienia `code` na sesję. Pierwsze logowanie Google tworzy `profiles` + workspace (trigger); `tos_accepted_at` ustawiane przy pierwszym wejściu do `/app` przez modal akceptacji regulaminu (blokujący), jeśli puste.
+- Pod formularzem nie ma innych metod logowania (brak separatora „or” i przycisku OAuth). Jeśli `tos_accepted_at` jest puste albo `tos_version` jest starsza niż bieżąca `TOS_VERSION`, przy wejściu do `/app` pokazuje się blokujący modal akceptacji regulaminu (`components/app/tos-modal.tsx`, §21.2).
 - Sesja: cookies Supabase (`@supabase/ssr`), odświeżanie w middleware.
 - „Remember me” nie występuje — sesja Supabase domyślna (refresh token, 30 dni nieaktywności).
 
 ### 5.3 „Forgot password” — 8-cyfrowy kod
 
 1. `/forgot-password`: pole e-mail → `POST /api/auth/forgot-password`.
-2. Backend: odpowiedź **zawsze** generyczna („If an account exists for this email, we sent a code”). Jeśli konto istnieje (i ma hasło lub jest kontem Google — wtedy reset ustawia hasło i pozwala logować się też hasłem): generowanie **8-cyfrowego** kodu, `auth_codes` (`purpose='password_reset'`, TTL 15 min, max 5 prób), Resend szablon alias **`preset`**, zmienna `PRESET` = kod.
+2. Backend: odpowiedź **zawsze** generyczna („If an account exists for this email, we sent a code”). Jeśli konto istnieje: generowanie **8-cyfrowego** kodu, `auth_codes` (`purpose='password_reset'`, TTL 15 min, max 5 prób), Resend szablon alias **`preset`**, zmienna `PRESET` = kod.
 3. `/reset-password?email=…`: 8 pól na cyfry + nowe hasło + powtórzenie.
 4. `POST /api/auth/reset-password`: weryfikacja kodu → `auth.admin.updateUserById(id, { password })` → unieważnienie wszystkich sesji użytkownika (`auth.admin.signOut(userId, 'global')`) → e-mail nie jest wysyłany (roadmapa: powiadomienie o zmianie hasła) → redirect `/login` z komunikatem.
 
@@ -1365,7 +1372,6 @@ Wszystkie odpowiedzi JSON `{ ok: true, data } | { ok: false, error: { code, mess
 | POST | `/api/auth/resend-code` | `{ email, purpose }` cooldown 60 s |
 | POST | `/api/auth/forgot-password` | §5.3 |
 | POST | `/api/auth/reset-password` | kod 8-cyfrowy + hasło |
-| GET | `/auth/callback` | OAuth (Google) |
 | POST | `/api/auth/logout` | |
 
 Wszystkie mutujące handlery wymagają zgodnego nagłówka `Origin` (`lib/api.ts: requireSameOrigin`) — brak nagłówka (klient nie-przeglądarkowy) jest akceptowany, obcy origin → 403.
@@ -1426,6 +1432,11 @@ Wszystkie mutujące handlery wymagają zgodnego nagłówka `Origin` (`lib/api.ts
 
 Każdy webhook dostawcy jedynie emituje event Inngest `provider/webhook.received` (bez logiki) → dalej `provider-webhook-relay`.
 
+### 16.8 Diagnostyka
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| POST | `/api/client-errors` | błąd z przeglądarki → Google Cloud Error Reporting (§25.4); `Origin` wymagany zgodny, 20/min/IP, zawsze 204 |
+
 ---
 
 ## 17. Interfejs użytkownika — strony i komponenty
@@ -1446,7 +1457,7 @@ Każdy webhook dostawcy jedynie emituje event Inngest `provider/webhook.received
 - **`/banned`**, **`/invite/[token]`**.
 
 ### 17.3 Auth (`(auth)`)
-Karty wyśrodkowane: `/login`, `/signup`, `/verify`, `/forgot-password`, `/reset-password`. Pola kodów jako komponent `OtpInput` (6 lub 8 cyfr). Przycisk Google z ikoną. Linki między stronami. Komunikaty generyczne wg §5.
+Karty wyśrodkowane: `/login`, `/signup`, `/verify`, `/forgot-password`, `/reset-password`. Pola kodów jako komponent `OtpInput` (6 lub 8 cyfr). Bez przycisków OAuth (Google usunięte 2026-09-24). Linki między stronami. Komunikaty generyczne wg §5.
 
 ### 17.4 Aplikacja (`/app`, layout z sidebar)
 Sidebar (lewy): przełącznik workspace'u, nawigacja: **Dashboard**, **Projects**, **Generate** (submenu: Image, Animation, 3D Model, SFX, Music, Voice), **Library**, **Jobs**, **Billing**, **Settings**; na dole: saldo kredytów (pasek + liczba, klik → Billing), avatar/menu (Settings, Sign out, Admin jeśli admin).
@@ -1598,8 +1609,8 @@ Układ 4 kolumn (desktop) / akordeon (mobile):
 
 ### 21.3 Baner cookies i zgody
 - `CookieBanner` przy pierwszej wizycie (dół ekranu): „Necessary only” / „Accept all” / „Customize”. Domyślnie wybór najbardziej prywatny.
-- Kategorie: **necessary** (sesja, `vf_ws`, zgody), **analytics** (Vercel Analytics / opcjonalnie PostHog — ładowane dopiero po zgodzie), **marketing** (brak w MVP; kategoria istnieje).
-- Zgoda zapisana w cookie `vf_consent` (JSON `{ v: 1, necessary: true, analytics: bool, marketing: bool, ts }`, 12 miesięcy) i dla zalogowanych dodatkowo w `profiles.cookie_consent` (przez `POST /api/account { action: 'cookie_consent' }`; roadmapa: tabela `consents` z historią). Menedżer zgód (`components/cookie-banner.tsx`, event `vf:consent-open`) dostępny ze stopki i z Settings → Data & privacy. Analytics nie jest jeszcze podpięte (komponent do dodania po zgodzie).
+- Kategorie: **necessary** (sesja, `vf_ws`, zgody), **analytics** (**Google Analytics 4** — cookies `_ga`, `_ga_<ID strumienia>`, ładowane dopiero po zgodzie, §21.6; teksty banera i menedżera nazywają Google Analytics wprost), **marketing** (brak w MVP; kategoria istnieje).
+- Zgoda zapisana w cookie `vf_consent` (JSON `{ v: 1, necessary: true, analytics: bool, marketing: bool, ts }`, 12 miesięcy) i dla zalogowanych dodatkowo w `profiles.cookie_consent` (przez `POST /api/account { action: 'cookie_consent' }`; roadmapa: tabela `consents` z historią). Menedżer zgód (`components/cookie-banner.tsx`, event `vf:consent-open`) dostępny ze stopki i z Settings → Data & privacy. Każdy zapis zgody emituje event `vf:consent` (`detail` = obiekt zgody), na który reaguje `components/analytics.tsx` (§21.6).
 - Stripe (Checkout/Portal) jest na domenie Stripe — informacja w Cookie Policy.
 
 ### 21.4 Zgody przy rejestracji
@@ -1623,26 +1634,50 @@ Układ 4 kolumn (desktop) / akordeon (mobile):
   **Co zniknęło razem z harmonogramem:** akcje `request_deletion` i `cancel_deletion` w `POST /api/account`, kolumna `profiles.deletion_requested_at` (usunięta z tabeli i z listy chronionych kolumn w triggerze `profiles_restrict_self_update`), funkcja `processAccountDeletions()` w `lib/maintenance.ts`, jej krok w cronie Inngest `retention-cleanup`, zadanie `deletions` w `POST /api/admin/maintenance` oraz e-mail `account-deletion-scheduled` (zastąpiony przez `account-deleted`).
 
 - Retencja logów: Vercel/Inngest wg ich ustawień; nasze `audit_log` 12 miesięcy.
-- Podmioty przetwarzające (do wpisania w Privacy Policy): Supabase (EU, Frankfurt), Cloudflare R2 (bucket `plikiveyraflow1`, **location hint `EEUR`** = Europa Wschodnia, ale **`jurisdiction: default`** — location hint to preferencja umiejscowienia, a nie prawna gwarancja przechowywania wyłącznie w UE; twardą gwarancję daje dopiero bucket utworzony z `jurisdiction: eu`, czego nie da się później zmienić — patrz §27 poz. 9b), Vercel, Inngest, Stripe, Resend (EU), OpenAI, fal.ai (uruchamia modele Hyper3D Rodin, Microsoft TRELLIS, ElevenLabs i Google Lyria — dane wejściowe, w tym zdjęcia, trafiają do storage fal), Modal.
+- Podmioty przetwarzające (do wpisania w Privacy Policy): Supabase (EU, Frankfurt), Cloudflare R2 (bucket `plikiveyraflow1`, **location hint `EEUR`** = Europa Wschodnia, ale **`jurisdiction: default`** — location hint to preferencja umiejscowienia, a nie prawna gwarancja przechowywania wyłącznie w UE; twardą gwarancję daje dopiero bucket utworzony z `jurisdiction: eu`, czego nie da się później zmienić — patrz §27 poz. 9b), Vercel, Inngest, Stripe, Resend (EU), OpenAI, fal.ai (uruchamia modele Hyper3D Rodin, Microsoft TRELLIS, ElevenLabs i Google Lyria — dane wejściowe, w tym zdjęcia, trafiają do storage fal), Modal, **Google Ireland Ltd. — Google Analytics 4** (tylko po zgodzie: identyfikator cookie, oczyszczone adresy stron, zdarzenia z §21.6, przybliżona lokalizacja z IP — GA4 nie zapisuje adresów IP; możliwy transfer do USA w ramach EU-US Data Privacy Framework), **Google Cloud — Error Reporting** (dane diagnostyczne błędów bez IP/e-maili/promptów, pseudonimowy ID użytkownika, retencja 30 dni, prawnie uzasadniony interes; §25.4).
+
+### 21.6 Google Analytics 4 (od 2026-09-24)
+
+- **Pliki**: `lib/analytics.ts` (logika), `components/analytics.tsx` (montowany w `app/layout.tsx` obok `CookieBanner`), test `tests/analytics.test.ts`.
+- **Włączenie**: tylko gdy `NEXT_PUBLIC_GA_MEASUREMENT_ID` (np. `G-XXXXXXXXXX`) jest ustawione w buildzie **i** cookie `vf_consent` ma `analytics: true`. Bez ID wszystkie funkcje są no-opem, a CSP nie zawiera domen Google.
+- **Ładowanie**: po zgodzie `enableAnalytics()` tworzy `window.dataLayer`/`gtag`, wysyła `consent default` (`ad_storage`, `ad_user_data`, `ad_personalization` = `denied`, `analytics_storage` = `granted`), `gtag('set', { page_location, page_referrer })` z oczyszczonym URL-em, `config` z `send_page_view: false`, `allow_google_signals: false`, `allow_ad_personalization_signals: false`, i wstrzykuje `https://www.googletagmanager.com/gtag/js?id=<ID>`. Zgoda udzielona w trakcie wizyty włącza GA od razu (event `vf:consent`), bez przeładowania.
+- **Wycofanie zgody** (`disableAnalytics()`): `consent update analytics_storage=denied`, `window['ga-disable-<ID>'] = true`, usunięcie cookies `_ga`, `_ga_*`, `_gid` na hoście i domenach nadrzędnych. Skrypt zostaje w pamięci do przeładowania, ale nic nie wysyła.
+- **Page views**: wyłącznie ręczne — `trackPageView()` przy każdej zmianie `usePathname()` (z opóźnieniem 50 ms, żeby `document.title` był już nowej strony), deduplikowane po oczyszczonym URL-u; `page_referrer` = poprzednia oczyszczona strona (pierwsza: `document.referrer`, oczyszczony, jeśli z naszego originu). Wymaga wyłączenia w GA4 „Page changes based on browser history events” (§23.9), inaczej GA liczyłby podwójnie i wysyłał surowe URL-e.
+- **Oczyszczanie URL-i** (`sanitizeUrl`): segment ścieżki będący UUID-em albo ciągiem ≥ 20 znaków `[A-Za-z0-9_-]` → `[id]` (tokeny `/s/<token>`, `/invite/<token>`, ID assetów/projektów); query string usuwany w całości (e-maile w `/verify?email=`, `/reset-password?email=`, `next=`) z wyjątkiem `utm_source|medium|campaign|term|content`; hash usuwany. `gtag('set')` sprawia, że także automatyczne zdarzenia (`user_engagement`, `scroll`) niosą oczyszczony URL.
+- **Zdarzenia** (`track(name, params)` — tylko enumy/liczby, nigdy PII, prompty ani URL-e z tokenami):
+
+| Zdarzenie | Gdzie | Parametry |
+|---|---|---|
+| `page_view` | `components/analytics.tsx` | `page_location`, `page_referrer`, `page_title` |
+| `login` | `/login` po udanym `signInWithPassword` | `method: "email"` |
+| `sign_up` | `/verify` po udanej weryfikacji kodu | `method: "email"` |
+| `generate_asset` | generator po utworzeniu joba | `asset_type`, `credits` (zarezerwowane) |
+| `begin_checkout` | `/app/billing` przed przekierowaniem do Stripe | `checkout_kind` (`trial`/`pro`/`studio`/`pack_*`) |
+| `download_asset` | panel pobierania | `asset_type`, `download_kind` (`file`/`zip`), `engine_preset` (ZIP) |
+| `share` | dialog udostępniania po utworzeniu linku | `method: "link"`, `content_type` (`asset`/`project`) |
+
+- **Bez `user_id`** i bez danych konta — GA widzi tylko pseudonimowy identyfikator cookie. `purchase` (Measurement Protocol z webhooka Stripe) nie jest zaimplementowany (roadmapa; wymaga `GA_API_SECRET` i przekazania `client_id` do metadanych sesji Checkout).
+- **CSP** (`next.config.ts`, tylko przy ustawionym ID): `script-src https://*.googletagmanager.com`; `img-src https://*.google-analytics.com https://*.googletagmanager.com`; `connect-src https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com` (lista z dokumentacji Google dla gtag.js bez Google Signals).
+- **Weryfikacja (2026-09-24, localhost, testowe ID)**: bez zgody brak skryptu, `dataLayer` i cookies `_ga`; po „Accept all” żądania `region1.google-analytics.com/g/collect` z `dl=http://localhost:3000/pricing`, potem `/verify` (bez `?email=`) i `/s/[id]`; po „Necessary only” cookies usunięte, a kolejne nawigacje nic nie wysyłają.
 
 ---
 
 ## 22. Bezpieczeństwo
 
-- **Sekrety**: tylko env po stronie serwera; test CI: skrypt `scripts/check-public-env.ts` failuje build, jeśli jakakolwiek zmienna `NEXT_PUBLIC_*` zawiera `KEY`/`SECRET`/`TOKEN` (poza dozwoloną listą: `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`) oraz grep w bundlu klienta po nazwach dostawców.
+- **Sekrety**: tylko env po stronie serwera; test CI: skrypt `scripts/check-public-env.ts` failuje build, jeśli jakakolwiek zmienna `NEXT_PUBLIC_*` zawiera `KEY`/`SECRET`/`TOKEN` (poza dozwoloną listą: `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`) oraz grep w bundlu klienta po nazwach dostawców (w tym `clouderrorreporting.googleapis.com`).
 - **RLS** na wszystkim; klient nigdy nie używa service role; service role tylko w `lib/supabase/admin.ts` importowanym wyłącznie w kodzie serwerowym (`server-only`).
 - **Kody weryfikacyjne**: CSPRNG, hash SHA-256 z pepperem (`AUTH_CODE_PEPPER`), porównanie stałoczasowe, TTL (10/15 min), max 5 prób, po wykorzystaniu `consumed_at`; jeden aktywny kod per (email, purpose) — nowy unieważnia stary.
-- **Rate limiting** (tabela `rate_limits`, okno przesuwne, klucze per IP i per e-mail): signup 5/h/IP, kody 5/h/e-mail i 20/h/IP, login 10/15 min/IP+e-mail, `/api/jobs` 60/h/user, `/api/s/:token` 60/min/IP, uploady 30/h/user.
+- **Rate limiting** (tabela `rate_limits`, okno przesuwne, klucze per IP i per e-mail): signup 5/h/IP, kody 5/h/e-mail i 20/h/IP, login 10/15 min/IP+e-mail, `/api/jobs` 60/h/user, `/api/s/:token` 60/min/IP, uploady 30/h/user, `/api/client-errors` 20/min/IP.
 - **Brak enumeracji kont**: identyczne odpowiedzi i czasy (sztuczne opóźnienie) dla signup/forgot.
 - **Hasła**: obsługa przez Supabase (bcrypt); polityka min. 10 znaków; sprawdzanie w HaveIBeenPwned (Supabase „leaked password protection” włączone).
 - **Sesje**: cookies `HttpOnly`, `Secure`, `SameSite=Lax`; unieważnianie globalne przy resecie hasła i banie.
 - **CSRF**: Route Handlers mutujące sprawdzają `Origin`; Server Actions mają wbudowaną ochronę.
-- **Nagłówki**: CSP (`default-src 'self'`; `img-src 'self' data: blob: https://*.r2.cloudflarestorage.com <R2 domain>`; `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com <R2>`; `frame-src https://js.stripe.com https://checkout.stripe.com`; `script-src 'self' 'nonce-…' https://js.stripe.com`), HSTS, `X-Content-Type-Options`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`.
+- **Nagłówki**: CSP (`default-src 'self'`; `img-src 'self' data: blob: https://*.r2.cloudflarestorage.com <R2 domain>`; `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com <R2>`; `frame-src https://js.stripe.com https://checkout.stripe.com`; `script-src 'self' 'nonce-…' https://js.stripe.com`; przy ustawionym `NEXT_PUBLIC_GA_MEASUREMENT_ID` dodatkowo domeny Google Analytics wg §21.6), HSTS, `X-Content-Type-Options`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`.
 - **Uploady**: whitelist MIME + magic bytes, limity (obrazy 10 MB, avatar 2 MB), nazwy plików generowane serwerowo, brak wykonywalnych typów; obrazy re-enkodowane przez sharp przed użyciem (usuwa metadane/EXIF).
 - **Webhooki**: weryfikacja podpisów, idempotencja (`stripe_events`, `provider_job_id`), odrzucanie zdarzeń starszych niż 5 min gdzie możliwe.
 - **Worker**: bearer token + HMAC odpowiedzi; worker nie ma dostępu do bazy, tylko do presigned URL.
 - **Prompt injection do LLM**: prompt użytkownika przekazywany jako dane w polu użytkownika, nigdy w system prompcie; output tłumacza walidowany schematem; tłumacz nie ma narzędzi.
-- **Logowanie**: bez promptów w logach Vercel (tylko id joba); PII minimalizowane; Sentry (opcjonalnie, `SENTRY_DSN`) z filtrowaniem.
+- **Logowanie**: bez promptów w logach Vercel (tylko id joba); PII minimalizowane; błędy → Google Cloud Error Reporting (§25.4) z oczyszczonymi URL-ami, bez IP i e-maili. Sentry nie jest używany.
 - **Zależności**: `pnpm audit` w CI, Dependabot.
 
 ---
@@ -1654,8 +1689,8 @@ Układ 4 kolumn (desktop) / akordeon (mobile):
 **Projekt**: `2DAssets`, ref **`lhwvkhdsoozvsftwhcif`**, org `Akwarium-dziennik`, region `eu-central-1`, Postgres 17.6. URL `https://lhwvkhdsoozvsftwhcif.supabase.co`, publishable key `sb_publishable_Wzbt23q74NoYtMDucWSVww_Zlvy4emW` (w `.env.local`); legacy anon JWT również aktywny. Migracje 0001–0010 zaaplikowane (`supabase_migrations.schema_migrations`), seed wgrany. Kroki 2–5 poniżej są **do zrobienia ręcznie** (§0.3).
 
 1. ~~Utwórz projekt~~ (istnieje). ~~Zapisz `service_role key` do `.env.local`~~ (zrobione).
-2. **Auth → Providers**: Email (włączony, „Confirm email” = ON, „Secure email change” ON), Google (Client ID/Secret z Google Cloud Console; redirect URL `https://<project-ref>.supabase.co/auth/v1/callback`).
-3. **Auth → URL configuration**: Site URL = `APP_URL`; Redirect URLs: `APP_URL/auth/callback`, `http://localhost:3000/auth/callback`, `https://*-<team>.vercel.app/auth/callback`.
+2. **Auth → Providers**: Email (włączony, „Confirm email” = ON, „Secure email change” ON). Wszystkie providery OAuth (w tym Google) **wyłączone**.
+3. **Auth → URL configuration**: Site URL = `APP_URL`; Redirect URLs puste (brak OAuth i linków e-mail Supabase).
 4. **Auth → Email templates**: nieużywane (własne e-maile), ale ustaw dowolne, by nie wyciekały domyślne; **Auth → Rate limits** domyślne; **Password**: min length 10, leaked password protection ON.
 5. **Auth → Settings**: JWT expiry 3600 s; refresh token rotation ON.
 6. Migracje: zaaplikowane przez MCP Supabase (nazwy `veyraflow_0001_…_0011`); lokalne pliki `supabase/migrations/*.sql` są ich odpowiednikiem 1:1 (przy odtwarzaniu od zera: `supabase link --project-ref <ref>` → `supabase db push`). Seed: `supabase/seed.sql` (wgrany). Admin: ręcznie `update profiles set role='admin' where email='…'`.
@@ -1748,6 +1783,34 @@ Kolejność ma znaczenie: klucza API nie da się później przepiąć na inną d
 
 Meshy i bezpośrednie API ElevenLabs **nie są używane** (od 2026-09-23 modele ElevenLabs idą przez fal.ai).
 
+### 23.9 Google Analytics 4 (stan 2026-09-24: **kod gotowy, właściwość GA4 nieutworzona**)
+
+Firebase **nie jest potrzebny** — to aplikacja webowa, gtag.js wysyła dane bezpośrednio do właściwości GA4 (§21.6). Kroki (właściciel, w przeglądarce):
+
+1. https://analytics.google.com → **Admin** (koło zębate) → **Create → Account** (nazwa np. `Veyraflow`; w *Data sharing settings* odznaczyć wszystkie opcje) → **Property**: nazwa `Veyraflow`, strefa czasowa *Poland*, waluta *US Dollar* (ceny w USD, §11) → *Business details* / *Business objectives* → **Create** → akceptacja warunków GA (region: Poland) wraz z **Data Processing Terms** (RODO).
+2. **Choose a platform → Web**: URL `https://asset-generator-tawny.vercel.app` (docelowo `veyraflow.eu`), nazwa strumienia `Veyraflow Web`. Przed **Create stream** kliknąć koło zębate przy *Enhanced measurement*: zostawić **Page views** i (opcjonalnie) **Scrolls**; **wyłączyć** *Outbound clicks*, *Site search*, *Form interactions*, *Video engagement*, **File downloads** (link_url z presigned URL-em R2 = podpis dostępu do pliku); w *Page views → Show advanced settings* **odznaczyć „Page changes based on browser history events”** (page_view wysyła kod; inaczej duplikaty i surowe URL-e z tokenami). Skopiować **Measurement ID** `G-XXXXXXXXXX` (instrukcji instalacji tagu nie wykonywać — kod już jest).
+3. Strumień → **Redact data**: włączyć *Email* oraz *Query parameters* z listą `email, next, token, code` (druga warstwa obok `sanitizeUrl`).
+4. Strumień → **Configure tag settings → Show more → List unwanted referrals**: warunek *Referral domain contains* `stripe.com` (powrót z Checkout/Portal nie może zaczynać nowej sesji ze źródłem „stripe”).
+5. **Admin → Data collection and modification**: *Data collection* → **Google signals** = OFF (kod i tak wysyła `allow_google_signals: false`); *Data retention* → **14 months**.
+6. **Admin → Data display → Custom definitions**: wymiary niestandardowe (zakres *Event*): `asset_type`, `download_kind`, `engine_preset`, `checkout_kind`; metryka niestandardowa (zakres *Event*, jednostka *Standard*): `credits`. (`method` i `content_type` są wymiarami wbudowanymi.)
+7. **Admin → Data display → Key events → New key event**: `sign_up`, `begin_checkout`, `generate_asset`.
+8. **Vercel** → projekt `asset-generator` → **Settings → Environment Variables → Add**: `NEXT_PUBLIC_GA_MEASUREMENT_ID` = `G-XXXXXXXXXX`, środowisko **tylko Production** (Preview i localhost bez ID = bez zaśmiecania danych), bez „Sensitive” (wartość publiczna) → **Deployments → ⋯ → Redeploy** (ID i CSP są wkompilowywane w build). Lokalnie zmienna zostaje pusta.
+9. **Test**: okno incognito → strona produkcyjna → baner → **Accept all** → GA4 **Reports → Realtime** pokazuje użytkownika w ciągu ~30 s; ścieżki w stylu `/s/[id]`, bez `?email=`. W DevTools → Console brak błędów CSP; w Network żądania `…google-analytics.com/g/collect`. Po **Cookie settings → Necessary only** żądania ustają, cookies `_ga*` znikają.
+10. **Dokumenty prawne** (§21.2, §27 poz. 20): w Privacy Policy i Cookie Policy dopisać Google Analytics 4 (Google Ireland Ltd.), cookies `_ga` i `_ga_<ID>` (do 2 lat), cel (statystyka użycia), podstawa: zgoda (art. 6 ust. 1 lit. a RODO), wycofanie przez „Cookie settings”.
+
+### 23.10 Google Cloud Error Reporting (stan 2026-09-24: **kod gotowy, projekt GCP i klucz nieutworzone**)
+
+Zamiennik Firebase Crashlytics dla weba (§25.4). Projekt Firebase **jest** projektem Google Cloud — jeśli właściciel ma już projekt Firebase dla Veyraflow, można użyć jego *Project ID* i pominąć pkt 1.
+
+1. https://console.cloud.google.com → wybór projektu (górny pasek) → **New project**: nazwa `Veyraflow`, zanotować **Project ID** (np. `veyraflow-prod`; to on idzie do `GCP_PROJECT_ID`, nie nazwa ani numer projektu) → **Create**.
+2. **APIs & Services → Library** → wyszukać **Error Reporting API** (`clouderrorreporting.googleapis.com`) → **Enable**. Error Reporting nie ma osobnego cennika (retencja 30 dni); jeśli konsola zażąda konta rozliczeniowego, podpiąć je (Billing → Link a billing account) i ustawić budżet z alertem (Billing → Budgets & alerts, np. 1 USD).
+3. **APIs & Services → Credentials → + Create credentials → API key**. Po utworzeniu **Edit API key**: nazwa `veyraflow-error-reporting`; *Application restrictions* = **None** (klucz jest używany tylko z serwerów Vercela, które nie mają stałych IP); *API restrictions* = **Restrict key → Error Reporting API** → **Save**. Skopiować klucz (`AIza…`).
+4. **Vercel** → projekt `asset-generator` → **Settings → Environment Variables**: `GCP_PROJECT_ID` = Project ID (zwykła zmienna) i `GCP_ERROR_REPORTING_API_KEY` = klucz (**Sensitive**); środowiska: **Production** (opcjonalnie Preview — wtedy błędy mają wersję `preview-<sha>`). Lokalnie nie wpisywać (błędy dev nie zaśmiecają raportów). → **Redeploy**.
+5. **Powiadomienia**: https://console.cloud.google.com/errors → **Configure notifications** → kanał e-mail (Monitoring → Notification channels → Email, np. `support@veyraflow.eu`) → Error Reporting wysyła e-mail przy **nowej grupie błędów** i przy jej powrocie po oznaczeniu jako rozwiązana.
+6. **Test**: na produkcji w konsoli przeglądarki (DevTools) wpisać `setTimeout(() => { throw new Error("Veyraflow Error Reporting test") })` → w Network `POST /api/client-errors` = 204 → po ~1 min błąd widoczny w https://console.cloud.google.com/errors (serwis `veyraflow-browser`, wersja `production-<sha>`); oznaczyć go jako *Resolved*. Błędy serwera pojawiają się jako `veyraflow-server`. Brak wpisu → Vercel → **Logs**, filtr `error-reporting` (np. `HTTP 403` = zła restrykcja klucza lub API niewłączone, `HTTP 400 API_KEY_INVALID` = zły klucz, `404` = zły Project ID).
+7. **Dokumenty prawne** (§27 poz. 20): w Privacy Policy dopisać Google Cloud (Google Ireland Ltd.) jako podmiot przetwarzający dane diagnostyczne (treść błędu, stack trace, adres strony bez parametrów, user-agent, pseudonimowy ID użytkownika; 30 dni; prawnie uzasadniony interes).
+8. Opcjonalnie usunąć z `.env.local` nieużywaną pozostałość `SENTRY_DSN`.
+
 ---
 
 ## 24. Zmienne środowiskowe
@@ -1758,6 +1821,7 @@ NEXT_PUBLIC_APP_URL=https://veyraflow.eu
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=      # tylko jeśli używamy Stripe.js (opcjonalne)
+NEXT_PUBLIC_GA_MEASUREMENT_ID=           # G-XXXXXXXXXX z GA4 (§23.9); puste = analityka wyłączona. Wkompilowywane w build → po zmianie redeploy
 ```
 **Serwerowe** (nigdy w kliencie). Oznaczone `[S]` = sekret → `.env.local` / Vercel „Sensitive”; pozostałe → `.env` / zwykłe zmienne Vercel:
 ```
@@ -1801,7 +1865,8 @@ MODAL_WORKER_TOKEN=                       # [S]
 WORKER_WEBHOOK_SECRET=                    # [S]
 FAL_WEBHOOK_SECRET=                       # [S] jeśli fal wymaga własnego sekretu w URL
 
-SENTRY_DSN=                               # [S] opcjonalnie
+GCP_PROJECT_ID=                           # Project ID z Google Cloud (§23.10); puste = raportowanie błędów wyłączone
+GCP_ERROR_REPORTING_API_KEY=              # [S] klucz API ograniczony do Error Reporting API
 ```
 
 ---
@@ -1826,7 +1891,7 @@ Odtworzenie bazy od zera: `supabase link --project-ref <ref>` → `supabase db p
 Od 2026-09-23 `.env` ma `MOCK_PROVIDERS=false` — generacje idą do fal.ai i kosztują (§9.7). Aby rozwijać i testować UI oraz pipeline bez kosztów, ustaw `MOCK_PROVIDERS=true`: pipeline'y generują wtedy placeholdery lokalnie (§0.4). Pliki lądują w `.data/storage/` (gitignore).
 
 ### 25.2 Testy
-- Unit (Vitest) — **zrobione**: `tests/postprocess.test.ts` (packer atlasu + `.tres`, kwantyzacja palety, WAV/normalizacja/loop, GLB writer/split, presety silników) `tests/validation.test.ts` (schematy zod auth/jobs/style guide, kontrakty tłumacza i moderacji) `tests/email.test.ts` (routing alias→szablon Resend vs. renderer inline, escaping wartości użytkownika, odrzucanie linków spoza `http(s)`) i `tests/falModels.test.ts` (§9.7: routing endpointów, mapowanie parametrów UI → fal dla Rodina/TRELLIS/SFX/Lyrii/TTS, pierwszeństwo ustawień ręcznych nad `model_params`, odrzucanie niepoprawnych wartości LLM, reguły TRELLIS i zakres `speed`, koszty, kontrakt tłumacza z `model_params`) — **33 testy**. `tests/validation.test.ts` pilnuje też, że `ASSET_TYPES` zawiera dokładnie 4 typy po usunięciu generatorów 2D (§9.0) i sprawdza domyślne wartości `model3dInputSchema`. Księga kredytów przetestowana skryptem SQL bezpośrednio na projekcie (§0.1). Do dodania: webhook Stripe (fixtures), testy adapterów z `msw`.
+- Unit (Vitest) — **zrobione**: `tests/postprocess.test.ts` (packer atlasu + `.tres`, kwantyzacja palety, WAV/normalizacja/loop, GLB writer/split, presety silników) `tests/validation.test.ts` (schematy zod auth/jobs/style guide, kontrakty tłumacza i moderacji) `tests/email.test.ts` (routing alias→szablon Resend vs. renderer inline, escaping wartości użytkownika, odrzucanie linków spoza `http(s)`) i `tests/falModels.test.ts` (§9.7: routing endpointów, mapowanie parametrów UI → fal dla Rodina/TRELLIS/SFX/Lyrii/TTS, pierwszeństwo ustawień ręcznych nad `model_params`, odrzucanie niepoprawnych wartości LLM, reguły TRELLIS i zakres `speed`, koszty, kontrakt tłumacza z `model_params`) i `tests/analytics.test.ts` (§21.6: oczyszczanie URL-i dla GA4 — tokeny/UUID → `[id]`, usuwanie query poza `utm_*`) i `tests/errorReporting.test.ts` (§25.4: format `message`/`reportLocation`, dokładny URL i treść `events:report` przy zamockowanym `fetch`, no-op bez konfiguracji, brak wyjątku przy awarii sieci, filtr szumu przeglądarki) — **44 testy**. `tests/validation.test.ts` pilnuje też, że `ASSET_TYPES` zawiera dokładnie 4 typy po usunięciu generatorów 2D (§9.0) i sprawdza domyślne wartości `model3dInputSchema`. Księga kredytów przetestowana skryptem SQL bezpośrednio na projekcie (§0.1). Do dodania: webhook Stripe (fixtures), testy adapterów z `msw`.
 - Integracyjne: pipeline'y z `msw` mockami dostawców; Inngest `InngestTestEngine`.
 - E2E (Playwright) — **do dodania**: rejestracja z kodem (kod odczytywany z bazy w teście), logowanie, tworzenie projektu, generacja obrazu (mock), pobieranie ZIP, checkout (Stripe test mode).
 - CI (GitHub Actions) — do dodania (repo nie jest jeszcze w git): lint, typecheck, unit, `check-public-env`, build; e2e na PR do `main`.
@@ -1835,7 +1900,24 @@ Od 2026-09-23 `.env` ma `MOCK_PROVIDERS=false` — generacje idą do fal.ai i ko
 - Branch `main` → Production (Vercel), PR → Preview (z Supabase branch lub projektem dev; Inngest branch envs).
 - Migracje: `supabase db push` w kroku CI przed deployem produkcyjnym (ręczne zatwierdzenie).
 - Worker: `modal deploy` z CI po zmianach w `worker/`.
-- Monitoring: Vercel logs, Inngest dashboard, Stripe dashboard, Sentry (opcjonalnie), alert e-mail przy > 10% failed jobs/h (Inngest failure handler → `send-email` do `SUPPORT_EMAIL`).
+- Monitoring: Vercel logs, Inngest dashboard, Stripe dashboard, **Google Cloud Error Reporting** (§25.4, powiadomienia e-mail o nowych błędach), alert e-mail przy > 10% failed jobs/h (Inngest failure handler → `send-email` do `SUPPORT_EMAIL`).
+
+### 25.4 Raportowanie błędów — Google Cloud Error Reporting (od 2026-09-24)
+
+**Dlaczego nie Firebase Crashlytics:** Crashlytics obsługuje tylko Apple, Android, Flutter i Unity — nie ma SDK dla aplikacji webowych. Decyzja właściciela (2026-09-24): odpowiednik z ekosystemu Google, **Google Cloud Error Reporting** (grupowanie błędów po stack trace, liczniki wystąpień i dotkniętych użytkowników, powiadomienia e-mail o nowych błędach, retencja 30 dni). Ograniczenie: brak source map — błędy z przeglądarki pokazują zminifikowane pliki `/_next/static/chunks/*.js`.
+
+- **Transport**: `lib/errorReporting.ts` (`server-only`) → `POST https://clouderrorreporting.googleapis.com/v1beta1/projects/<GCP_PROJECT_ID>/events:report?key=<GCP_ERROR_REPORTING_API_KEY>` (uwierzytelnienie kluczem API — obsługiwane przez Error Reporting API). Timeout 4 s, nigdy nie rzuca (błąd transportu → `console.warn "[error-reporting] …"`). Bez obu zmiennych — no-op (`integrations.errorReporting`). Bez SDK Google (sam `fetch`, działa też w runtime edge).
+- **Payload** (`ReportedErrorEvent`): `eventTime`; `serviceContext.service` = `veyraflow-server` lub `veyraflow-browser`, `serviceContext.version` = `<VERCEL_ENV|local>-<7 znaków VERCEL_GIT_COMMIT_SHA>` (np. `production-abcdef1`); `message` = `err.stack` w formacie V8 (`TypeError: msg\n    at fn (file:l:c)`) — po nim Error Reporting grupuje; `context.reportLocation` = pierwsza ramka stosu (V8 lub Firefox/Safari `fn@file:l:c`), a gdy jej brak — etykieta `where` z `lineNumber: 0`; `context.httpRequest` = metoda, **oczyszczony URL** (`sanitizeUrl` z §21.6 — bez tokenów i query), user-agent, referer, status; `context.user` = UUID użytkownika Supabase (tylko dla zgłoszeń, gdzie jest znany). Bez IP, e-maili i promptów.
+- **Źródła po stronie serwera**:
+  - `instrumentation.ts` → `onRequestError` (Next.js): nieprzechwycone błędy renderowania RSC, Server Actions, middleware i Route Handlerów bez wrappera (`/api/webhooks/*`, `/api/files`);
+  - `lib/api.ts: fail(err, req)` — każdy 500 `internal_error` z Route Handlerów opakowanych w `handler()` (`ApiError`, `ZodError`, `ConfigError` nie są raportowane), wysyłka w `after()` po odpowiedzi;
+  - `lib/pipelines/run.ts` — nieudany job, jeśli błąd **nie** jest `JobFailure` (czyli błąd kodu albo `ProviderError` inny niż `provider_policy`, np. wyczerpane saldo fal.ai); `where = "pipeline <typ>"`, `user` = właściciel joba;
+  - `lib/queue/dispatch.ts` (błąd poza pipeline'em w kolejce inline, eksport danych), `lib/downloads.ts` (ZIP), `app/api/webhooks/stripe/route.ts` (błąd handlera zdarzenia).
+- **Źródła po stronie przeglądarki**: `components/error-reporter.tsx` (montowany w `app/layout.tsx`; `window` `error` + `unhandledrejection`), `app/error.tsx` i nowy `app/global-error.tsx` (błędy root layoutu) → `lib/client/reportError.ts` → `POST /api/client-errors` (`fetch` z `keepalive`). Błędy z `digest` (rzucone przy renderowaniu na serwerze) są pomijane w przeglądarce — raportuje je `onRequestError`. Filtr szumu `shouldIgnore`: `Script error.` bez obiektu błędu, `AbortError`, `ResizeObserver loop`, stosy z `*-extension://`, `ApiClientError` ze statusem < 500. Deduplikacja w obrębie strony (nazwa + treść + pierwsza ramka), maks. 10 zgłoszeń na załadowanie strony.
+- **`POST /api/client-errors`** (`app/api/client-errors/route.ts`): `requireSameOrigin`, bez konfiguracji → od razu 204; rate limit 20/min/IP (`LIMITS.clientErrorsPerIp`, gdy jest service role); walidacja `clientErrorSchema` (`kind`, `name` ≤ 100, `message` ≤ 1000, `stack` ≤ 8000, `url` ≤ 2000 znaków); dołącza `user` z sesji Supabase (jeśli zalogowany); raport w `after()`; odpowiedź **204**.
+- **Zgoda**: nie wymaga zgody cookies — brak cookies i brak żądań z przeglądarki do domen trzecich (przeglądarka rozmawia tylko z naszym API). Podstawa: prawnie uzasadniony interes (stabilność usługi); do opisania w Privacy Policy (§21.5).
+- **CSP**: bez zmian (przeglądarka nie łączy się z Google). `check-public-env` sprawdza, że `clouderrorreporting.googleapis.com` nie trafia do bundla klienta.
+- **Weryfikacja (2026-09-24, localhost, fikcyjny projekt i klucz)**: tymczasowe trasy rzucające błąd (bez wrappera i z `handler()`) oraz błędy JS/odrzucony Promise w przeglądarce → 5 wywołań `events:report`, każde odrzucone przez Google `400 API_KEY_INVALID` (oczekiwane przy fikcyjnym kluczu), `POST /api/client-errors` → 204; testy jednostkowe `tests/errorReporting.test.ts` sprawdzają dokładny URL i treść żądania (fetch zamockowany). Trasy testowe usunięte.
 
 ---
 
@@ -1886,14 +1968,15 @@ Rozstrzygnięte (2026-09-22): **generatory `image` i `sprite_animation` usunięt
 | 17 | Podłączenie LLM tłumacza (OpenAI) | kontrakt gotowy (`model_params`, §8.3); do zrobienia: `OPENAI_API_KEY`, weryfikacja ID modelu `gpt-5.6-luna` i wsparcia `minimum`/`maximum` w strict JSON Schema |
 | 18 | Tekst strony głównej o 3D | kafelek „3D models & characters” obiecuje „auto-rigging and animations” — nieaktualne, dopóki poz. 15 nie jest zrobiona |
 | 19 | Tekstury 1K w Rodinie | Rodin nie ma opcji 1K — przy 1K dostawca oddaje 2K (TRELLIS obsługuje 1K przez `texture_size = 1024`); ewentualne skalowanie tekstur w post-processingu do decyzji |
+| 20 | Privacy Policy / Cookie Policy a analityka i raportowanie błędów | przed włączeniem `NEXT_PUBLIC_GA_MEASUREMENT_ID` na produkcji dopisać Google Analytics 4 (cookies, cel, podstawa prawna, odbiorca Google Ireland) — §23.9 pkt 10; po włączeniu Error Reporting dopisać Google Cloud jako podmiot przetwarzający dane diagnostyczne — §23.10 pkt 7 |
 
 ---
 
 ## 28. Checklista odtworzenia projektu od zera
 
 1. ✅ Repo wg struktury §4.2 (Next.js 15.5, TS, Tailwind 4, biblioteki z §4.1; `pnpm install`).
-2. ✅ Supabase (§23.1): migracje `supabase/migrations/0001–0010` (tabele, enumy, triggery, RPC, RLS, `job_status_feed` + Realtime), seed. ☐ Ustawienia Auth w dashboardzie (Google, Confirm email, leaked-password, URL-e) — ręcznie.
-3. ✅ Auth (§5) z kodami 6/8-cyfrowymi i Resend (§20), Google OAuth (kod; provider do włączenia w Supabase).
+2. ✅ Supabase (§23.1): migracje `supabase/migrations/0001–0010` (tabele, enumy, triggery, RPC, RLS, `job_status_feed` + Realtime), seed. ☐ Ustawienia Auth w dashboardzie (Confirm email, Google wyłączone, leaked-password, Site URL) — ręcznie.
+3. ✅ Auth (§5) z kodami 6/8-cyfrowymi i Resend (§20); tylko e-mail + hasło (bez OAuth).
 3a. ✅ Migracja `20260922000012_remove_image_animation_voices.sql` — usuwa wiersze `model_pricing`/`feature_flags` wycofanych generatorów (§9.0), dodaje `model3d.engine.rodin`/`model3d.engine.trellis`, kasuje tabelę `voice_cache` i kolumnę `profiles.deletion_requested_at` wraz z aktualizacją triggera `profiles_restrict_self_update` (§21.5).
 3b. ✅ Migracja `20260923000013_fal_models.sql` — cennik pod fal.ai (§11.2): endpointy fal w `model_pricing`, wiersze `music.lyria3.*`, usunięte wiersze ElevenLabs Music / Stable Audio / eleven_v3, rig/animacje `unbound`, pusty payload flagi muzyki. `seed.sql` odzwierciedla ten stan.
 4. ✅ Workspace'y, role, zaproszenia (§6); projekty, style guide, referencje (§7).
@@ -1905,4 +1988,6 @@ Rozstrzygnięte (2026-09-22): **generatory `image` i `sprite_animation` usunięt
 10. ✅ Formalności (§21): stopka, strony-placeholdery, baner cookies + menedżer zgód, zgody, eksport/usunięcie konta.
 11. ✅ Bezpieczeństwo (§22): CSP i nagłówki, rate limity, `check-public-env`, testy jednostkowe; ☐ Playwright e2e, CI.
 12. ✅ Projekt Vercel `asset-generator` + deploy z GitHuba (§23.3, 2026-09-24); ☐ zmienne środowiskowe na Vercelu i redeploy (§0.3 pkt 13), ☐ deploy workera, ☐ konfiguracja webhooków u dostawców.
+12a. ✅ Google Analytics 4 w kodzie (§21.6); ☐ właściwość GA4, ustawienia strumienia i `NEXT_PUBLIC_GA_MEASUREMENT_ID` na Vercelu (§23.9).
+12b. ✅ Google Cloud Error Reporting w kodzie (§25.4, zamiast Crashlytics); ☐ projekt GCP, Error Reporting API, klucz API i zmienne na Vercelu (§23.10).
 13. ☐ Uzupełnić placeholdery z §27 i aktualizować ten dokument przy każdej zmianie.

@@ -104,6 +104,12 @@ export const env = {
   get FAL_WEBHOOK_SECRET() {
     return str("FAL_WEBHOOK_SECRET");
   },
+  get GCP_PROJECT_ID() {
+    return str("GCP_PROJECT_ID");
+  },
+  get GCP_ERROR_REPORTING_API_KEY() {
+    return str("GCP_ERROR_REPORTING_API_KEY");
+  },
   get IS_DEV() {
     return process.env.NODE_ENV !== "production";
   },
@@ -128,6 +134,10 @@ export const integrations = {
   },
   get worker() {
     return Boolean(env.MODAL_WORKER_URL && env.MODAL_WORKER_TOKEN);
+  },
+  /** Google Cloud Error Reporting (SPEC §25.4) — without it errors only go to the server console. */
+  get errorReporting() {
+    return Boolean(env.GCP_PROJECT_ID && env.GCP_ERROR_REPORTING_API_KEY);
   },
   /**
    * Mock AI providers when explicitly requested or when no provider key exists at all. Per stage:

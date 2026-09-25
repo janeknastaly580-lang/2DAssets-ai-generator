@@ -286,6 +286,8 @@ byłby tu 3–5× mniejszy.
 
 ### 9. `@supabase/supabase-js` w bundlu stron logowania i rejestracji
 
+> **Aktualizacja 2026-09-24:** `GoogleButton` usunięty razem z logowaniem Google (SPEC §5) — `/signup` nie importuje już `supabaseBrowser` (First Load JS po buildzie: **278 kB → 208 kB**). `/login` nadal go importuje (formularz woła `signInWithPassword` w przeglądarce), więc dla tej strony punkt pozostaje aktualny.
+
 Z analizy chunków builda: chunk `7233-*.js` (**196 kB** surowo) zawiera `RealtimeClient`,
 `GoTrue` i `postgrest`. Jest ładowany przez `/app/layout`, `/app/page`,
 `/app/generate/[type]/page` — i przez **`/login` oraz `/signup`**.
