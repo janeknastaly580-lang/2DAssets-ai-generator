@@ -100,7 +100,7 @@ export default function PricingPage() {
           ["How are credits consumed?", "Trial credits first (they expire soonest), then subscription credits (reset monthly), then usage credits from packs."],
           ["What happens to unused subscription credits?", "They lapse when the next invoice is paid; the pool resets to 1000 (Pro) or 3200 (Studio)."],
           ["Are credits charged if a generation fails?", "No. Credits are reserved when a job starts and released if it fails or is rejected by the content policy."],
-          ["Can I buy the trial twice?", "The $1.29 trial is available once per account."],
+          ["Can I buy the trial twice?", `The $${PLANS.trial.priceUsd} trial is available once per account.`],
         ].map(([q, a]) => (
           <details key={q} className="p-4">
             <summary className="cursor-pointer list-none font-medium">{q}</summary>

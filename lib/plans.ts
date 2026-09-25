@@ -39,7 +39,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
   trial: {
     id: "trial",
     name: "Trial",
-    priceUsd: 1.29,
+    priceUsd: 1.69,
     billing: "one_time",
     credits: 86,
     concurrency: 1,
@@ -80,10 +80,10 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
   },
 };
 
-// SPEC §11.4 — pack prices are placeholders (X / Y) until decided by the owner (§27 pkt 2).
+// SPEC §11.4 — Pack S price is a placeholder until decided by the owner (§27 pkt 2); Pack L decided 2026-09-25.
 export const CREDIT_PACKS = [
   { id: "pack_1000", name: "Pack S", credits: 1000, priceUsd: 19, placeholder: true },
-  { id: "pack_10000", name: "Pack L", credits: 10000, priceUsd: 149, placeholder: true },
+  { id: "pack_10000", name: "Pack L", credits: 10000, priceUsd: 180, placeholder: false },
 ] as const;
 
 export type CheckoutKind = "trial" | "pro" | "studio" | "pack_1000" | "pack_10000";

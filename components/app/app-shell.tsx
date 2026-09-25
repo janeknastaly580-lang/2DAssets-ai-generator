@@ -7,6 +7,7 @@ import { TosModal } from "./tos-modal";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { Alert, AlertDescription } from "@/components/ui/primitives";
 import Link from "next/link";
+import { PLANS } from "@/lib/plans";
 
 export interface ShellProps {
   ctx: SidebarContext & {
@@ -48,7 +49,7 @@ export function AppShell({ ctx, children }: ShellProps) {
             {ctx.workspace.plan === "none" && ctx.workspace.type === "personal" && (
               <Alert variant="info" className="mb-4">
                 <AlertDescription>
-                  Free workspaces keep files for 30 days. <Link href="/app/billing" className="underline">Start the $1.29 trial or subscribe</Link> to keep them longer.
+                  Free workspaces keep files for 30 days. <Link href="/app/billing" className="underline">Start the ${PLANS.trial.priceUsd} trial or subscribe</Link> to keep them longer.
                 </AlertDescription>
               </Alert>
             )}

@@ -16,6 +16,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className="min-h-screen antialiased">
         <Providers>
+          {/* Pre-launch notice (SPEC §17) — remove when the site goes live. */}
+          <div role="alert" className="bg-destructive px-4 py-4 text-center text-2xl font-bold tracking-tight text-white sm:text-4xl">
+            The site doesn&apos;t work yet
+          </div>
           {children}
           <CookieBanner />
           <Analytics />

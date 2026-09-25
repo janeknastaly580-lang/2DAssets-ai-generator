@@ -58,7 +58,7 @@ Sekcja opisuje **faktyczny stan** projektu po pierwszej implementacji. Reszta do
 | **Stripe** | brak kluczy — UI billingu pokazuje „Billing is not configured”; kod checkout/portal/webhooków gotowy (§11.6) |
 | **Dostawcy AI** | **2026-09-23: `FAL_KEY` wpisany do `.env.local`, `MOCK_PROVIDERS=false` w `.env`** — wszystkie 4 generatory (3D, SFX, muzyka, głos) wołają prawdziwe modele fal.ai (§9.7). `OPENAI_API_KEY` pusty → **LLM tłumacza jeszcze niepodłączony**: tłumacz = identyczność (+ style guide), moderacja = lista słów, `model_params` puste (parametry spoza UI = domyślne wartości dostawcy). Klucz fal zweryfikowany (uwierzytelnienie działa), ale **konto fal.ai ma wyczerpane saldo** (`403 User is locked. Reason: Exhausted balance`) — prawdziwe generacje ruszą po doładowaniu (§0.3 pkt 9). Meshy i bezpośrednie ElevenLabs usunięte z projektu (kod, env, webhook) |
 | **Upstash Workflow / Modal** | **2026-09-25: kolejka przeniesiona z Inngest na Upstash Workflow** (region EU `eu-central-1`, §14.1) — kod gotowy i zweryfikowany na lokalnym emulatorze; konto Upstash istnieje (QStash user w `eu-central-1` i `us-east-1`), **brak `QSTASH_*` na Vercelu i brak harmonogramów** (§23.6). Bez `QSTASH_TOKEN` kolejka działa **inline** w procesie Next.js (`lib/queue/dispatch.ts`). Migracja `20260925000014_upstash_workflow` zaaplikowana. Worker Modal ma kod w `worker/`, nie jest wdrożony |
-| **Vercel** | **2026-09-24: projekt `asset-generator`** (ID `prj_H6G7LFOahjC7fjpNghC1jdOxdzRA`; nazwa „Asset generator” odrzucona przez Vercel — nazwy projektów muszą być małymi literami bez spacji), konto/team `janeknastaly580-langs-projects` (`team_5ghyU9jSaokV9cFz0Ug9VIDZ`), plan **Hobby**. Podpięty pod repo GitHub **`janeknastaly580-lang/2DAssets-ai-generator`** — push na `main` = deploy Production. Framework Next.js, Node **24.x** (`engines.node: ">=22"` → Vercel wybiera najnowszą pasującą wersję), **Fluid compute ON**, region funkcji **`fra1`** (ustawienie projektu + `vercel.json`), `maxDuration = 300` w `/api/workflow/[name]` (do 2026-09-25 `/api/inngest`), `/api/jobs`, `/api/downloads`. Domena produkcyjna: **`https://asset-generator-tawny.vercel.app`**. Deployment Protection: domyślne *Standard* (`all_except_custom_domains`). **Zmienne środowiskowe celowo NIE są wpisane (decyzja właściciela 2026-09-24)** — build przechodzi bez nich, ale w runtime: strony zwracają 500 `MIDDLEWARE_INVOCATION_FAILED` (middleware tworzy klienta Supabase z `NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY`), endpointy `/api/*` wymagające bazy zwracają 500 `internal_error`, POST-y odrzucane jako `bad_origin` (`APP_URL` domyślnie `localhost`), `/api/workflow/*` → 503 `queue_disabled` (brak `QSTASH_TOKEN`). Dokończenie: §0.3 pkt 13. Pliki `.env`, `.env.local`, `.env.example` pozostają w `.gitignore` i nie ma ich w repozytorium |
+| **Vercel** | **2026-09-24: projekt `asset-generator`** (ID `prj_H6G7LFOahjC7fjpNghC1jdOxdzRA`; nazwa „Asset generator” odrzucona przez Vercel — nazwy projektów muszą być małymi literami bez spacji), konto/team `janeknastaly580-langs-projects` (`team_5ghyU9jSaokV9cFz0Ug9VIDZ`), plan **Hobby**. Podpięty pod repo GitHub **`janeknastaly580-lang/2DAssets-ai-generator`** — push na `main` = deploy Production. Framework Next.js, Node **24.x** (`engines.node: ">=22"` → Vercel wybiera najnowszą pasującą wersję), **Fluid compute ON**, region funkcji **`fra1`** (ustawienie projektu + `vercel.json`), `maxDuration = 300` w `/api/workflow/[name]` (do 2026-09-25 `/api/inngest`), `/api/jobs`, `/api/downloads`. Domeny projektu: **`asset-generator-tawny.vercel.app`** (działa) oraz **`veyraflow.eu`** i **`www.veyraflow.eu`** — obie dodane do projektu 2026-09-25 i `verified` po stronie Vercela (domena w koncie jako `external`, nameservery **Cloudflare** `andy`/`surina.ns.cloudflare.com`). **Stan 2026-09-25: `https://veyraflow.eu` działa** (Cloudflare: `A @ → 216.198.79.1`, DNS only; certyfikat TLS wystawiony przez Vercel). `www.veyraflow.eu` nie ma rekordu DNS (NXDOMAIN) — do decyzji: §23.3 pkt 4. Deployment Protection: domyślne *Standard* (`all_except_custom_domains`). **Zmienne środowiskowe (stan 2026-09-25, tylko nazwy)**: Production — `APP_URL` i `NEXT_PUBLIC_APP_URL` (= `https://veyraflow.eu`), `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `RESEND_API_KEY`, `VEYRAFLOW_SENDING_ACCESS`, `OPENAI_API_KEY`, `NEXT_PUBLIC_GA_MEASUREMENT_ID`, `GCP_PROJECT_ID`, `GCP_ERROR_REPORTING_API_KEY`; Production + Preview — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `EMAIL_FROM`. Brak m.in. `R2_*`, `QSTASH_*`, `FAL_KEY`, Stripe. Skoro `APP_URL` = `https://veyraflow.eu`, POST-y wysyłane z `asset-generator-tawny.vercel.app` są odrzucane jako `bad_origin` — logowanie itp. działa dopiero na `veyraflow.eu`. `/api/workflow/*` → 503 `queue_disabled` (brak `QSTASH_TOKEN`). Dokończenie: §0.3 pkt 13. Pliki `.env`, `.env.local`, `.env.example` pozostają w `.gitignore` i nie ma ich w repozytorium |
 | **Google Analytics 4** | **2026-09-24: kod gotowy** (§21.6) — gtag.js ładowany dopiero po zgodzie „Analytics” z banera cookies, ręczne `page_view` z oczyszczonym URL-em, zdarzenia `login`, `sign_up`, `generate_asset`, `begin_checkout`, `download_asset`, `share`; CSP rozszerzany o domeny Google tylko przy ustawionym ID. **Brak `NEXT_PUBLIC_GA_MEASUREMENT_ID`** (właściwość GA4 jeszcze nie istnieje) → wszystko jest no-opem. Uruchomienie: §0.3 pkt 14, §23.9 |
 | **Raportowanie błędów** | **2026-09-24: kod gotowy** — Google Cloud Error Reporting zamiast Firebase Crashlytics (Crashlytics nie ma SDK dla weba, §25.4): błędy serwera (`onRequestError`, 500-ki z `handler()`, nieudane joby, kolejka, ZIP, webhook Stripe) i przeglądarki (`/api/client-errors`). **Brak `GCP_PROJECT_ID` / `GCP_ERROR_REPORTING_API_KEY`** → no-op. Uruchomienie: §0.3 pkt 15, §23.10 |
 | **Dokumenty prawne** | placeholdery w `docs/legal/*.md` (status `draft`), renderowane na `/terms`, `/privacy`, `/cookies`, `/ai-disclosure`, `/impressum` |
@@ -71,7 +71,7 @@ Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w
 - **`.env.local`** (gitignore) — **wyłącznie sekrety**: `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `AUTH_CODE_PEPPER`, klucze AI, `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, `MODAL_WORKER_TOKEN`, `WORKER_WEBHOOK_SECRET`, `FAL_WEBHOOK_SECRET`, `GCP_ERROR_REPORTING_API_KEY` (§25.4; Sentry nie jest używany — `SENTRY_DSN` usunięty z `.env.local` 2026-09-25, razem z kluczami Inngest; w ich miejsce pusty `QSTASH_TOKEN` do uzupełnienia wg §23.6). Klucze AI to tylko `OPENAI_API_KEY` i `FAL_KEY` (`MESHY_API_KEY`, `ELEVENLABS_API_KEY`, `MESHY_WEBHOOK_SECRET` usunięte 2026-09-23). Plik istnieje z wygenerowanymi `AUTH_CODE_PEPPER`, `WORKER_WEBHOOK_SECRET`, `MODAL_WORKER_TOKEN` i wpisanym `RESEND_API_KEY`. Na Vercelu każda z tych zmiennych ma być oznaczona **„Sensitive”** (Vercel szyfruje i nigdy nie pokazuje wartości). `SUPABASE_SERVICE_ROLE_KEY` wklejony przez właściciela (2026-09-20). Next.js łączy oba pliki; `.env.local` nadpisuje `.env`.
 - Żadna z powyższych zmiennych serwerowych nie trafia do bundla przeglądarki — tam idą tylko `NEXT_PUBLIC_*`; pilnuje tego `pnpm check:public-env` (§22).
 - **Supabase Secrets (Edge Functions)** — **nie są potrzebne**; projekt nie używa Edge Functions. Jeśli w przyszłości część logiki trafi do Edge Functions, do `supabase secrets set` trafią te same zmienne serwerowe z §24.
-- **Vercel** (projekt `asset-generator`, §0.1) — wszystkie zmienne z §24, sekrety oznaczone „Sensitive”. **Stan 2026-09-24: żadna zmienna nie jest wpisana** (decyzja właściciela); instrukcja — §0.3 pkt 13.
+- **Vercel** (projekt `asset-generator`, §0.1) — wszystkie zmienne z §24, sekrety oznaczone „Sensitive”. **Stan 2026-09-25: część zmiennych wpisana** (lista w §0.1, wiersz Vercel); instrukcja — §0.3 pkt 13.
 
 ### 0.3 Czynności ręczne (właściciel)
 
@@ -134,7 +134,7 @@ Cała logika serwerowa (klucze dostawców, service role, Stripe, Resend) żyje w
 3. **Spójność stylu**: assety powstają w kontekście *Projektu gry* z własnym style guide'em i obrazami referencyjnymi.
 4. **Pobieranie „pod silnik”**: każdy asset ma presety eksportu Unity / Unreal / Godot.
 5. **Bez modeli wideo** (Sora, Kling, Wan itp.) do animacji 2D — za drogie. Animacje 2D robimy szkieletowo (auto-rig + biblioteka ruchów), patrz §9.2.
-6. **Monetyzacja**: kredyty + subskrypcje (Pro 15 USD/mies., Studio 45 USD/mies.), pakiety kredytów, trial za 1,29 USD netto (przed VAT) dający ok. +0,08 USD zysku po prowizjach Stripe. Dwa okienka kredytów: **Subscription credits** — co miesiąc **resetują się** do puli planu (1000 Pro / 3200 Studio); **Usage credits** — z pakietów, **nigdy się nie resetują**. Płatności przez Stripe; dane kart nigdy nie trafiają do nas (Stripe Checkout hosted).
+6. **Monetyzacja**: kredyty + subskrypcje (Pro 15 USD/mies., Studio 45 USD/mies.), pakiety kredytów, trial za 1,69 USD netto (przed VAT) dający ok. +0,47 USD zysku po prowizjach Stripe. Dwa okienka kredytów: **Subscription credits** — co miesiąc **resetują się** do puli planu (1000 Pro / 3200 Studio); **Usage credits** — z pakietów, **nigdy się nie resetują**. Płatności przez Stripe; dane kart nigdy nie trafiają do nas (Stripe Checkout hosted).
 7. UI **tylko po angielsku** (bez i18n w MVP).
 
 ---
@@ -315,7 +315,7 @@ Zasady przepływu:
 ├── instrumentation.ts               ← Next.js onRequestError → Error Reporting (§25.4)
 ├── scripts/check-public-env.ts      ← test bezpieczeństwa env/bundla (§22)
 ├── scripts/check-r2.ts              ← round-trip PUT/HEAD/GET/presign/DELETE na R2 (§23.2)
-├── tests/                           ← postprocess.test.ts, validation.test.ts, email.test.ts, falModels.test.ts, analytics.test.ts, errorReporting.test.ts, accountDeletion.test.ts, providerWait.test.ts, stubs/
+├── tests/                           ← postprocess.test.ts, validation.test.ts, email.test.ts, falModels.test.ts, analytics.test.ts, errorReporting.test.ts, accountDeletion.test.ts, providerWait.test.ts, stripeWebhook.test.ts, stubs/
 └── docs/legal/                      ← terms.md, privacy.md, cookies.md, ai-disclosure.md, impressum.md (placeholdery)
 ```
 
@@ -814,13 +814,13 @@ Wyjście: `model_mesh` (GLB z teksturą), `timings`. Miniatura = zdjęcie wejśc
 
 **1 kredyt = 0,01 USD orientacyjnego kosztu u dostawców (cost basis).** Ceny w tabeli kosztów odzwierciedlają realny koszt dostawcy (zaokrąglony w górę), a marża powstaje na cenie sprzedaży kredytów.
 
-Trial za **1,29 USD netto** (cena przed VAT; VAT doliczany przez Stripe Tax) daje **86 kredytów** (0,86 USD kosztu dostawców) i ma wychodzić na ok. **+0,08 USD** po prowizjach Stripe. Wyliczenie (wszystkie ceny w Stripe: `tax_behavior: exclusive`):
+Trial za **1,69 USD netto** (cena przed VAT; VAT doliczany przez Stripe Tax; do 2026-09-25 było 1,29 USD) daje **86 kredytów** (0,86 USD kosztu dostawców) i wychodzi na ok. **+0,47 USD** po prowizjach Stripe (przy 1,29 USD było ok. +0,08 USD). Wyliczenie (wszystkie ceny w Stripe: `tax_behavior: exclusive`):
 
 | Scenariusz | Prowizja Stripe | Wynik |
 |---|---|---|
-| bez VAT, karta spoza UE (2,9 % + 0,30 USD) | 0,337 USD | **+0,093 USD** |
-| VAT PL 23 % doliczony, prowizja od kwoty brutto | 0,346 USD | **+0,084 USD** |
-| karta UE (1,5 % + ~0,27 USD), bez VAT | 0,289 USD | **+0,141 USD** |
+| bez VAT, karta spoza UE (2,9 % + 0,30 USD) | 0,349 USD | **+0,481 USD** |
+| VAT PL 23 % doliczony, prowizja od kwoty brutto | 0,360 USD | **+0,470 USD** |
+| karta UE (1,5 % + ~0,27 USD), bez VAT | 0,295 USD | **+0,535 USD** |
 
 Liczba kredytów triala jest stałą `TRIAL_CREDITS = 86` w konfiguracji planów (i w metadata ceny Stripe) — do korekty, jeśli zmienią się prowizje lub koszty dostawców.
 
@@ -849,7 +849,7 @@ Koszt joba = suma pozycji × `count`. UI pokazuje **koszt przed uruchomieniem** 
 
 | | **No plan** (konto bez zakupu) | **Trial** (jednorazowo) | **Pro** | **Studio** |
 |---|---|---|---|---|
-| Cena | 0 | **1,29 USD** jednorazowo | **15 USD / mies.** | **45 USD / mies.** |
+| Cena | 0 | **1,69 USD** jednorazowo | **15 USD / mies.** | **45 USD / mies.** |
 | Kredyty | 0 | **86** (ważne 30 dni) | **1000 / mies.** | **3200 / mies.** |
 | Odnowienie | — | — | co miesiąc: **reset do 1000** (każda opłacona faktura cyklu Stripe) | co miesiąc: **reset do 3200** |
 | Niewykorzystane kredyty subskrypcyjne | — | — | **przepadają** przy resecie (nie kumulują się) | przepadają |
@@ -868,7 +868,9 @@ Uwaga do marż: Pro = 1000 kr. ≈ 10 USD kosztu → ~33% marży brutto; Studio 
 | Pakiet | Kredyty | Cena |
 |---|---|---|
 | Pack S | 1000 | **X** (placeholder; sugestia 19 USD / 79 PLN) |
-| Pack L | 10 000 | **Y** (placeholder; sugestia 149 USD / 599 PLN) |
+| Pack L | 10 000 | **180 USD** netto (ustalone 2026-09-25; kwota PLN — równowartość ustawiana w cenie Stripe) |
+
+Marża po prowizji Stripe (karta spoza UE, 2,9 % + 0,30 USD): Pack L = 10 000 kr. ≈ 100 USD kosztu dostawców → ok. +74,5 USD (~41 %); Pack S przy 19 USD → ok. +8,2 USD (~43 %). Cena za kredyt: Pack S 0,019 USD, Pack L 0,018 USD (Pro w abonamencie 0,015 USD).
 
 W UI użytkownik widzi **dwa okienka**:
 - **Subscription credits** — `X / 1000` (Pro) lub `X / 3200` (Studio), „resets in N days”; co miesiąc, przy opłaceniu faktury cyklu, saldo jest **ustawiane na nowo na pełną pulę planu** (niewykorzystane przepadają);
@@ -879,19 +881,19 @@ Wewnętrznie `credit_balances` trzyma trzy kubełki: `trial` (30 dni), `subscrip
 **Kolejność zużycia**: najpierw `trial` (wygasa najszybciej), potem `subscription` (przepada przy resecie), na końcu `purchased`.
 
 ### 11.5 Trial — zasady
-- Cena **1,29 USD**, **86 kredytów**, ważne **30 dni** od zakupu.
+- Cena **1,69 USD** netto, **86 kredytów**, ważne **30 dni** od zakupu.
 - Dostępny **raz na konto**: przed utworzeniem sesji Checkout backend sprawdza `profiles.trial_used_at` (ustawiane w webhooku po opłaceniu); przycisk „Start trial” znika po użyciu. Dodatkowo blokada po `stripe_customer_id` (jeden klient Stripe = jeden trial) — oba warunki w kodzie, bez żadnych danych karty.
 - **Żadne dane karty nie przechodzą przez naszą aplikację ani bazę**: płatność wyłącznie przez hostowany Stripe Checkout (`mode: 'payment'`, price `STRIPE_PRICE_TRIAL`); przechowujemy tylko `stripe_customer_id`, id sesji/zdarzenia i `trial_used_at`. Nie zapisujemy fingerprintu karty, ostatnich cyfr ani nazwiska z karty. Ewentualne reguły antyfraudowe (np. powtarzające się karty) konfigurowane są po stronie Stripe Radar i działają na danych, które ma tylko Stripe.
 - Nie wymaga subskrypcji, nie przechodzi automatycznie w plan płatny.
 
 ### 11.6 Integracja Stripe
 
-- **Produkty/ceny** (ID w env): `trial` (one-time 1,29 USD), `pro_monthly`, `studio_monthly`, `pack_1000`, `pack_10000`. Ceny w USD z dodatkową walutą PLN (Stripe multi-currency prices; prezentacja waluty wg kraju klienta wykrytego przez Stripe Checkout). Wszystkie ceny `tax_behavior: exclusive` (VAT doliczany na górze — założenie wyliczenia triala w §11.1).
+- **Produkty/ceny** (ID w env): `trial` (one-time 1,69 USD), `pro_monthly`, `studio_monthly`, `pack_1000`, `pack_10000`. Ceny w USD z dodatkową walutą PLN (Stripe multi-currency prices; prezentacja waluty wg kraju klienta wykrytego przez Stripe Checkout). Wszystkie ceny `tax_behavior: exclusive` (VAT doliczany na górze — założenie wyliczenia triala w §11.1).
 - **Stripe Tax** włączony (VAT UE / Polska), adres zbierany w Checkout, `automatic_tax: { enabled: true }`, `tax_id_collection` dla firm.
 - **Dane kart**: wyłącznie hostowany Stripe Checkout i Customer Portal (redirect na domenę Stripe). Nie używamy Stripe Elements ani własnych formularzy kart; aplikacja nie ma dostępu do numerów kart i nie zapisuje żadnych szczegółów metody płatności (zakres PCI: SAQ A).
 - **Checkout Session** tworzona serwerowo (`POST /api/billing/checkout`), `client_reference_id = workspace_id`, `metadata: { workspace_id, user_id, kind }`, `customer` (tworzony i zapisany w `workspaces.stripe_customer_id`), `success_url=/app/billing?status=success&session_id=…`, `cancel_url=/app/billing`.
 - **Customer Portal** (`POST /api/billing/portal`) do zmiany planu (Pro ↔ Studio, proration włączone), aktualizacji karty, anulowania (na koniec okresu), faktur.
-- **Webhook** `POST /api/webhooks/stripe` (weryfikacja podpisu, idempotencja przez `stripe_events`):
+- **Webhook** `POST /api/webhooks/stripe` (weryfikacja podpisu, idempotencja przez `stripe_events`; ochrona przed replay wyłącznie przez znacznik czasu `t=` w podpisie — tolerancja 300 s na każdą próbę dostarczenia, `stripe.webhooks.constructEvent`. **Brak** odrzucania po `event.created`: Stripe ponawia nieudane dostarczenia do 3 dni z oryginalnym `created`, więc taki warunek gubiłby np. `checkout.session.completed` po chwilowym 500. Odpowiedzi: 503 `not_configured`, 400 `missing_signature` / `bad_signature`, 500 `handler_error` (Stripe ponowi), 200 `{ ok: true, received: <event.id> }`. Test: `tests/stripeWebhook.test.ts`):
   - `checkout.session.completed` (`mode=payment`): przyznanie kredytów pakietu (`pack_purchase`, kubełek `purchased`, bezterminowo) lub triala (`trial_purchase`, kubełek `trial`, `trial_expires_at = now() + 30 dni`, `profiles.trial_used_at = now()`).
   - `checkout.session.completed` (`mode=subscription`): zapis `stripe_subscription_id`, plan, status.
   - `invoice.paid` (subskrypcja, `billing_reason` in `subscription_create`, `subscription_cycle`, `subscription_update`): **reset kubełka `subscription` do pełnej puli planu** (`subscription_available = 1000 | 3200`, niewykorzystane przepadają — wpis `expiry` z ujemną deltą, potem `subscription_grant` z dodatnią), `subscription_expires_at = current_period_end + 3 dni` (bufor na Stripe Smart Retries). Przy upgrade Pro → Studio w trakcie okresu (proration): saldo podnoszone o różnicę (3200 − 1000 = 2200) bez resetu; przy downgrade nic nie odejmujemy do końca okresu. Idempotencja po `invoice.id`.
@@ -1429,7 +1431,7 @@ Wszystkie mutujące handlery wymagają zgodnego nagłówka `Origin` (`lib/api.ts
 ### 16.7 Webhooki (przychodzące)
 | Ścieżka | Źródło | Weryfikacja |
 |---|---|---|
-| `/api/webhooks/stripe` | Stripe | podpis `STRIPE_WEBHOOK_SECRET` |
+| `/api/webhooks/stripe` | Stripe | podpis `STRIPE_WEBHOOK_SECRET` (`constructEvent`, tolerancja znacznika czasu podpisu 300 s); bez limitu wieku `event.created`, bo ponowienia Stripe (do 3 dni) go nie zmieniają; duplikaty pomijane przez `stripe_events` (§11.6) |
 | `/api/webhooks/fal` | fal.ai queue webhooks | sekret w URL `?secret=FAL_WEBHOOK_SECRET` (gdy ustawiony); podpis ED25519 fal — do dodania przy wdrożeniu. Obecnie pipeline'y nie przekazują `webhookUrl` (odpytują kolejkę), trasa zostaje na przyszłość |
 | `/api/webhooks/worker` | Modal worker | HMAC-SHA256 surowego body w nagłówku `X-Veyraflow-Signature` (`WORKER_WEBHOOK_SECRET`) |
 | `/api/workflow/<name>` | Upstash QStash | nagłówek `Upstash-Signature` (`QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY`), §14.1 |
@@ -1451,6 +1453,7 @@ Webhooki dostawców (`fal`, `worker`) są po weryfikacji tylko potwierdzane (`20
 - Dostępność: focus rings, aria-labels, kontrast AA.
 - Stan ładowania: skeletony; błędy: toasty (sonner) + inline.
 - Nazwy w UI po angielsku; brak i18n.
+- **Baner przed startem (od 2026-09-25)**: w `app/layout.tsx`, nad treścią każdej strony (marketing, auth, `/app`), pełnoszeroki pasek `role="alert"` z dużym napisem **„The site doesn't work yet”** (tło `bg-destructive`, biały pogrubiony tekst `text-2xl`, od `sm` `text-4xl`, wyśrodkowany). Nie da się go zamknąć; usunąć przy starcie produkcyjnym.
 
 ### 17.2 Strony publiczne (`(marketing)`)
 - **`/` Landing**: hero („Generate game-ready assets with AI”), 4 kafle typów assetów z przykładami (statyczne obrazy w `public/`), sekcja „Export for Unity, Unreal, Godot”, „How it works” (3 kroki), pricing teaser, FAQ, CTA. Stopka wg §21.
@@ -1479,7 +1482,7 @@ Topbar: breadcrumb, wyszukiwarka biblioteki (⌘K), przełącznik motywu, dzwone
 - **Library `/app/library`**: wszystkie assety workspace'u; filtry (typ, projekt, data, tag, status), sortowanie, zaznaczanie wielu → „Download ZIP (preset)”, „Move to project”, „Delete”; widok *Trash*.
   - **`/app/assets/[id]`**: duży podgląd, metadane (rozmiar, klatki, fps, tri count, czas trwania, paleta), oryginalny prompt, **panel „Download”** z wyborem presetu (Unity/Unreal/Godot/Generic) i listą plików (format, rozmiar, przycisk), sekcja „Derived assets”, „Share”, „Use as reference”.
 - **Jobs `/app/jobs`**: tabela (typ, projekt, status live, koszt, czas, akcje: cancel/retry-as-new/open asset), filtr statusu, szczegóły błędu w drawerze.
-- **Billing `/app/billing`**: aktualny plan i okres; dwa okienka kredytów — **Subscription credits** (`X / pula planu`, pasek postępu, „resets in N days”) i **Usage credits** (kredyty z pakietów, bez daty; pod spodem linia z kredytami triala i datą ich wygaśnięcia, jeśli są); przyciski „Upgrade/Change plan” (Checkout/Portal), „Buy credits” (2 pakiety), „Start trial — $1.29” (tylko jeśli `trial_used_at` puste), historia księgi (tabela z paginacją), „Manage subscription” (Portal), usage wykres kredytów 30 dni. Wszystkie płatności to redirect do Stripe — strona nie zawiera pól karty.
+- **Billing `/app/billing`**: aktualny plan i okres; dwa okienka kredytów — **Subscription credits** (`X / pula planu`, pasek postępu, „resets in N days”) i **Usage credits** (kredyty z pakietów, bez daty; pod spodem linia z kredytami triala i datą ich wygaśnięcia, jeśli są); przyciski „Upgrade/Change plan” (Checkout/Portal), „Buy credits” (2 pakiety), „Start trial — $1.69” (tylko jeśli `trial_used_at` puste), historia księgi (tabela z paginacją), „Manage subscription” (Portal), usage wykres kredytów 30 dni. Wszystkie płatności to redirect do Stripe — strona nie zawiera pól karty.
 - **Settings `/app/settings`**: zakładki *Profile*, *Security* (zmiana hasła, aktywne sesje — sign out everywhere), *Workspace* (nazwa, członkowie, zaproszenia, role — dla team), *Notifications* (e-maile: job completed, expiring assets, marketing), *Data & privacy* (eksport danych, **natychmiastowe usunięcie konta potwierdzane wpisaniem własnego adresu e-mail** — §21.5, zgody cookies — otwiera menedżera zgód).
 - **Admin `/admin`** (§19).
 
@@ -1683,7 +1686,7 @@ Układ 4 kolumn (desktop) / akordeon (mobile):
 - **CSRF**: Route Handlers mutujące sprawdzają `Origin`; Server Actions mają wbudowaną ochronę.
 - **Nagłówki**: CSP (`default-src 'self'`; `img-src 'self' data: blob: https://*.r2.cloudflarestorage.com <R2 domain>`; `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com <R2>`; `frame-src https://js.stripe.com https://checkout.stripe.com`; `script-src 'self' 'nonce-…' https://js.stripe.com`; przy ustawionym `NEXT_PUBLIC_GA_MEASUREMENT_ID` dodatkowo domeny Google Analytics wg §21.6), HSTS, `X-Content-Type-Options`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`.
 - **Uploady**: whitelist MIME + magic bytes, limity (obrazy 10 MB, avatar 2 MB), nazwy plików generowane serwerowo, brak wykonywalnych typów; obrazy re-enkodowane przez sharp przed użyciem (usuwa metadane/EXIF).
-- **Webhooki**: weryfikacja podpisów, idempotencja (`stripe_events`, `provider_job_id`), odrzucanie zdarzeń starszych niż 5 min gdzie możliwe.
+- **Webhooki**: weryfikacja podpisów, idempotencja (`stripe_events`, `provider_job_id`). Ochrona przed replay przez znacznik czasu **podpisu** (Stripe: `t=` w `Stripe-Signature`, tolerancja 300 s na próbę dostarczenia), nigdy przez wiek samego zdarzenia (`event.created`) — to blokowałoby legalne ponowienia (Stripe ponawia do 3 dni). Webhooki `fal` i `worker` nie mają znacznika czasu, ale są tylko potwierdzane i logowane (§16.7), więc ich powtórzenie nic nie zmienia.
 - **Worker**: bearer token + HMAC odpowiedzi; worker nie ma dostępu do bazy, tylko do presigned URL.
 - **Prompt injection do LLM**: prompt użytkownika przekazywany jako dane w polu użytkownika, nigdy w system prompcie; output tłumacza walidowany schematem; tłumacz nie ma narzędzi.
 - **Logowanie**: bez promptów w logach Vercel (tylko id joba); PII minimalizowane; błędy → Google Cloud Error Reporting (§25.4) z oczyszczonymi URL-ami, bez IP i e-maili. Sentry nie jest używany.
@@ -1745,22 +1748,33 @@ Układ 4 kolumn (desktop) / akordeon (mobile):
    Branch `main` = Production; pozostałe branche/PR = Preview. Domena Production: `asset-generator-tawny.vercel.app`.
 2. ☐ Env (Production/Preview/Development) wg §24; sekrety oznaczone „Sensitive” — **celowo niewpisane** (decyzja właściciela 2026-09-24); instrukcja: §0.3 pkt 13. Build (`next build`) przechodzi bez żadnych zmiennych (zweryfikowane w czystym klonie repo); runtime bez nich zwraca 500.
 3. ✅ Fluid compute ON; `export const maxDuration = 300` w `app/api/workflow/[name]/route.ts`, `app/api/downloads/route.ts` i `app/api/jobs/route.ts` (w dwóch ostatnich kolejka inline wykonuje pracę w `after()`, więc limit czasu dotyczy całej generacji / budowy ZIP-a).
-4. ☐ Domena produkcyjna **`veyraflow.eu`** (apex) + `www.veyraflow.eu` → redirect 308 na apex; DNS (A/CNAME) wg instrukcji Vercel u rejestratora.
+4. ◐ Domena produkcyjna **`veyraflow.eu`** (apex) + `www.veyraflow.eu` → redirect 308 na apex.
+   - ✅ Vercel (2026-09-25): obie domeny dodane do projektu `asset-generator` (Settings → Domains → Add), `verified`. `www.veyraflow.eu` na razie **bez** redirectu (serwuje to samo co apex).
+   - ◐ **DNS w Cloudflare** (strefa `veyraflow.eu`, nameservery `andy`/`surina.ns.cloudflare.com`) → **DNS → Records → Add record** — rekord `A` dodany 2026-09-25 (apex działa po HTTPS), `CNAME www` jeszcze nie:
+     | Type | Name | Content | Proxy status | TTL |
+     |---|---|---|---|---|
+     | `A` | `@` | `216.198.79.1` (starszy adres `76.76.21.21` też działa) | **DNS only** (szara chmurka) | Auto |
+     | `CNAME` | `www` | `cname.vercel-dns.com` | **DNS only** | Auto |
+     Proxy (pomarańczowa chmurka) musi być wyłączone — inaczej Vercel nie wystawi certyfikatu Let's Encrypt i pojawiają się pętle przekierowań. Nie ruszać istniejących rekordów Resend (`send` — CNAME na `send.forge.rmta.net`, `resend._domainkey` — TXT z kluczem DKIM). Brak rekordów CAA w strefie (nic nie blokuje Let's Encrypt). Jeśli Vercel w Settings → Domains pokazuje inną wartość (np. CNAME `<hash>.vercel-dns-0xx.com`), użyć tej z Vercela.
+   - ☐ Vercel → Settings → Domains → `www.veyraflow.eu` → **Edit** → *Redirect to* `veyraflow.eu`, **308** (albo **Remove**, jeśli `www` ma nie istnieć — wtedy pominąć rekord CNAME).
+   - Po propagacji (zwykle kilka minut) Vercel sam wystawia certyfikat; status w Settings → Domains zmienia się na „Valid Configuration”. Weryfikacja: `curl -I https://veyraflow.eu` → 200.
+   - Po zmianie domeny: Supabase → Authentication → URL Configuration → Site URL = `https://veyraflow.eu`; R2 CORS origin `https://veyraflow.eu` (§23.2 pkt 3); `pnpm upstash:schedules https://veyraflow.eu` (§23.6), gdy będą `QSTASH_*`.
 5. ☐ Vercel Analytics włączone dopiero po zgodzie cookies (komponent ładowany warunkowo).
 6. Crony nie są konfigurowane w Vercel (brak `crons` w `vercel.json`) — harmonogramy (`retention-cleanup`, `expire-credits`, `reset-violation-counters`) obsługują QStash schedules Upstash (§14.1, §23.6).
 7. Plan **Hobby** (niekomercyjny) — przed uruchomieniem płatności przejść na Pro.
 
 ### 23.4 Stripe
 1. Produkty i ceny (test + live):
-   - `Veyraflow Trial` — one-time, **1,29 USD** (+ PLN równowartość) → `STRIPE_PRICE_TRIAL`
+   - `Veyraflow Trial` — one-time, **1,69 USD** (+ PLN równowartość) → `STRIPE_PRICE_TRIAL`
    - `Veyraflow Pro` — recurring monthly, 15,00 USD (+ PLN) → `STRIPE_PRICE_PRO_MONTHLY`
    - `Veyraflow Studio` — recurring monthly, 45,00 USD (+ PLN) → `STRIPE_PRICE_STUDIO_MONTHLY`
    - `Credit Pack 1000` — one-time, X → `STRIPE_PRICE_PACK_1000`
-   - `Credit Pack 10000` — one-time, Y → `STRIPE_PRICE_PACK_10000`
-   - wszystkie ceny `tax_behavior = exclusive`; metadata na cenach: `credits` (**86**/1000/3200/1000/10000), `kind`.
+   - `Credit Pack 10000` — one-time, **180 USD** → `STRIPE_PRICE_PACK_10000`
+   - wszystkie ceny `tax_behavior = exclusive` (wymagane, bo Checkout tworzony jest z `automatic_tax: { enabled: true }`); metadata na cenach: `credits` (**86**/1000/3200/1000/10000), `kind` — **opcjonalne, kod ich nie czyta**: liczba kredytów i ceny pokazywane w UI pochodzą z `lib/plans.ts`, a rodzaj zakupu z `metadata.kind` sesji Checkout ustawianego przez aplikację. Kwoty w Stripe muszą być ręcznie zgodne z `lib/plans.ts` (1,69 / 15 / 45 USD; Pack S — placeholder 19 USD, Pack L — 180 USD). Ceny w Stripe są niezmienne: przy zmianie kwoty tworzy się **nową** cenę w tym samym produkcie, archiwizuje starą i podmienia `STRIPE_PRICE_*` na Vercelu.
+   - Tworzenie w Dashboardzie: **Product catalog → Add product** → nazwa → cena (kwota, waluta **USD**, *Recurring → Monthly* dla Pro/Studio, *One-off* dla Trial i pakietów, podatek: *exclusive*) → zapisz → w produkcie wiersz ceny **⋯ → Copy price ID** (`price_…`, nie `prod_…`). Tryb testowy/sandbox i live mają **różne** ID cen (produkt można przenieść przyciskiem *Copy to live mode*).
 2. Stripe Tax: włącz, ustaw kraj rejestracji firmy (Polska), rejestracje VAT (PL + OSS UE).
 3. Customer Portal: pozwól na zmianę planu między Pro/Studio (proration), anulowanie na koniec okresu, aktualizację metody płatności, historię faktur.
-4. Webhook endpoint `https://veyraflow.eu/api/webhooks/stripe` z eventami z §11.6 → `STRIPE_WEBHOOK_SECRET`.
+4. Webhook: Developers → **Workbench → Webhooks → Create an event destination** → *Events from: Your account*, typ **Webhook endpoint**, Endpoint URL `https://veyraflow.eu/api/webhooks/stripe`, dokładnie 5 zdarzeń (§11.6): `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed` (**nie** `invoice.payment_succeeded` — kod go nie obsługuje; subskrypcja odnawia kredyty na `invoice.paid`). Payload style *Snapshot*, API version — domyślna konta. Po utworzeniu: **Signing secret → Reveal** (`whsec_…`) → `STRIPE_WEBHOOK_SECRET` (Sensitive) na Vercelu + redeploy. Osobny webhook i sekret dla trybu testowego/sandboxa i dla live. Dopóki na Vercelu nie ma `STRIPE_SECRET_KEY` i `STRIPE_WEBHOOK_SECRET`, endpoint zwraca **503**. Każda odpowiedź inna niż 2xx (503 `not_configured`, 500 `handler_error`, timeout, deploy) powoduje, że Stripe ponawia dostarczenie (live: przez maks. 3 dni, z wykładniczym odstępem; sandbox/test: kilka prób w ciągu kilku godzin) — handler **nie** sprawdza wieku zdarzenia (`event.created`, niezmienny przy ponowieniach), więc spóźnione ponowienie zostanie przetworzone normalnie (kredyty przyznane, idempotentnie przez `stripe_events`). Ochrona przed replay: podpis `Stripe-Signature` zawiera znacznik czasu `t=` danej próby, a `constructEvent` odrzuca podpisy starsze niż 300 s (`bad_signature`, 400). Zdarzenia, które się nie powiodły, można też ręcznie wysłać ponownie: Workbench → Webhooks → endpoint → zdarzenie → **Resend**.
 5. Checkout: tryb hostowany (`ui_mode: 'hosted'`), `customer_creation: 'always'`, `billing_address_collection: 'required'` (dla Stripe Tax). Żadnych Stripe Elements / Payment Element w aplikacji — dane kart obsługuje wyłącznie Stripe.
 6. Radar (opcjonalnie, w całości po stronie Stripe): wbudowane reguły antyfraudowe; ewentualna reguła ograniczająca wielokrotne zakupy `Trial` z tej samej karty konfigurowana w Stripe Dashboard — aplikacja nie otrzymuje ani nie przechowuje żadnych danych karty. Ograniczenie „raz na konto” egzekwuje aplikacja (`trial_used_at`, `stripe_customer_id`).
 7. Lokalnie: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`.
@@ -1910,7 +1924,7 @@ Odtworzenie bazy od zera: `supabase link --project-ref <ref>` → `supabase db p
 Od 2026-09-23 `.env` ma `MOCK_PROVIDERS=false` — generacje idą do fal.ai i kosztują (§9.7). Aby rozwijać i testować UI oraz pipeline bez kosztów, ustaw `MOCK_PROVIDERS=true`: pipeline'y generują wtedy placeholdery lokalnie (§0.4). Pliki lądują w `.data/storage/` (gitignore).
 
 ### 25.2 Testy
-- Unit (Vitest) — **zrobione**: `tests/postprocess.test.ts` (packer atlasu + `.tres`, kwantyzacja palety, WAV/normalizacja/loop, GLB writer/split, presety silników) `tests/validation.test.ts` (schematy zod auth/jobs/style guide, kontrakty tłumacza i moderacji) `tests/email.test.ts` (routing alias→szablon Resend vs. renderer inline, escaping wartości użytkownika, odrzucanie linków spoza `http(s)`) i `tests/falModels.test.ts` (§9.7: routing endpointów, mapowanie parametrów UI → fal dla Rodina/TRELLIS/SFX/Lyrii/TTS, pierwszeństwo ustawień ręcznych nad `model_params`, odrzucanie niepoprawnych wartości LLM, reguły TRELLIS i zakres `speed`, koszty, kontrakt tłumacza z `model_params`) i `tests/analytics.test.ts` (§21.6: oczyszczanie URL-i dla GA4 — tokeny/UUID → `[id]`, usuwanie query poza `utm_*`) i `tests/errorReporting.test.ts` (§25.4: format `message`/`reportLocation`, dokładny URL i treść `events:report` przy zamockowanym `fetch`, no-op bez konfiguracji, brak wyjątku przy awarii sieci, filtr szumu przeglądarki) i `tests/accountDeletion.test.ts` (§21.5: `deleteUserFiles` usuwa `ws/<id>/`, `downloads/<id>/` i `users/<id>/`, a błąd storage jest propagowany) i `tests/providerWait.test.ts` (§14.1: przerwa `PipelineYield` przy deadline z zapisanym ID zlecenia, wznowienie odpytuje zapisane zlecenie bez ponownego wysłania, gotowy wynik bez wywołania dostawcy, timeout liczony od pierwszego wysłania, osobne checkpointy dla kolejnych zleceń) — **51 testów**. `tests/validation.test.ts` pilnuje też, że `ASSET_TYPES` zawiera dokładnie 4 typy po usunięciu generatorów 2D (§9.0) i sprawdza domyślne wartości `model3dInputSchema`. Księga kredytów przetestowana skryptem SQL bezpośrednio na projekcie (§0.1). Do dodania: webhook Stripe (fixtures), testy adapterów z `msw`.
+- Unit (Vitest) — **zrobione**: `tests/postprocess.test.ts` (packer atlasu + `.tres`, kwantyzacja palety, WAV/normalizacja/loop, GLB writer/split, presety silników) `tests/validation.test.ts` (schematy zod auth/jobs/style guide, kontrakty tłumacza i moderacji) `tests/email.test.ts` (routing alias→szablon Resend vs. renderer inline, escaping wartości użytkownika, odrzucanie linków spoza `http(s)`) i `tests/falModels.test.ts` (§9.7: routing endpointów, mapowanie parametrów UI → fal dla Rodina/TRELLIS/SFX/Lyrii/TTS, pierwszeństwo ustawień ręcznych nad `model_params`, odrzucanie niepoprawnych wartości LLM, reguły TRELLIS i zakres `speed`, koszty, kontrakt tłumacza z `model_params`) i `tests/analytics.test.ts` (§21.6: oczyszczanie URL-i dla GA4 — tokeny/UUID → `[id]`, usuwanie query poza `utm_*`) i `tests/errorReporting.test.ts` (§25.4: format `message`/`reportLocation`, dokładny URL i treść `events:report` przy zamockowanym `fetch`, no-op bez konfiguracji, brak wyjątku przy awarii sieci, filtr szumu przeglądarki) i `tests/accountDeletion.test.ts` (§21.5: `deleteUserFiles` usuwa `ws/<id>/`, `downloads/<id>/` i `users/<id>/`, a błąd storage jest propagowany) i `tests/providerWait.test.ts` (§14.1: przerwa `PipelineYield` przy deadline z zapisanym ID zlecenia, wznowienie odpytuje zapisane zlecenie bez ponownego wysłania, gotowy wynik bez wywołania dostawcy, timeout liczony od pierwszego wysłania, osobne checkpointy dla kolejnych zleceń) i `tests/stripeWebhook.test.ts` (§11.6/§16.7: trasa `POST /api/webhooks/stripe` z prawdziwie podpisanymi payloadami — ponowienie zdarzenia utworzonego ~3 dni temu przy `NODE_ENV=production` jest przetwarzane, podpis starszy niż 300 s / zły sekret / zmienione body → 400 `bad_signature`, brak nagłówka → 400 `missing_signature`, błąd handlera → 500 `handler_error`; `handleStripeEvent` zamockowany) — **56 testów**. `tests/validation.test.ts` pilnuje też, że `ASSET_TYPES` zawiera dokładnie 4 typy po usunięciu generatorów 2D (§9.0) i sprawdza domyślne wartości `model3dInputSchema`. Księga kredytów przetestowana skryptem SQL bezpośrednio na projekcie (§0.1). Do dodania: logika `handleStripeEvent` (fixtures zdarzeń Stripe przeciw bazie — przyznawanie kredytów, reset subskrypcji, idempotencja `stripe_events`), testy adapterów z `msw`.
 - Integracyjne: pipeline'y z `msw` mockami dostawców; workflow na lokalnym emulatorze QStash (`pnpm qstash:dev`, §14.1).
 - E2E (Playwright) — **do dodania**: rejestracja z kodem (kod odczytywany z bazy w teście), logowanie, tworzenie projektu, generacja obrazu (mock), pobieranie ZIP, checkout (Stripe test mode).
 - CI (GitHub Actions) — do dodania (repo nie jest jeszcze w git): lint, typecheck, unit, `check-public-env`, build; e2e na PR do `main`.
@@ -1958,7 +1972,9 @@ Od 2026-09-23 `.env` ma `MOCK_PROVIDERS=false` — generacje idą do fal.ai i ko
 
 ## 27. Otwarte decyzje / placeholdery do uzupełnienia
 
-Rozstrzygnięte (2026-09-20): domena `veyraflow.eu`; trial 1,29 USD netto (przed VAT, `tax_behavior: exclusive`) / 86 kredytów / 30 dni / raz na konto, bez danych kart po naszej stronie; progi moderacji 3 (ostrzeżenie) / 12 (ban); dwa okienka kredytów — Subscription credits resetowane co miesiąc do 1000 (Pro) / 3200 (Studio), Usage credits z pakietów bez resetu; nazwa szablonu `SIGNIN` pochodzi od „sign in” i zostaje.
+Rozstrzygnięte (2026-09-25): **trial 1,69 USD netto** (zamiast 1,29 USD; kredyty bez zmian — 86), **Pack L (10 000 kr.) 180 USD netto**; cena Pack S nadal otwarta (poz. 2).
+
+Rozstrzygnięte (2026-09-20): domena `veyraflow.eu`; trial 1,29 USD netto (od 2026-09-25: 1,69 USD) (przed VAT, `tax_behavior: exclusive`) / 86 kredytów / 30 dni / raz na konto, bez danych kart po naszej stronie; progi moderacji 3 (ostrzeżenie) / 12 (ban); dwa okienka kredytów — Subscription credits resetowane co miesiąc do 1000 (Pro) / 3200 (Studio), Usage credits z pakietów bez resetu; nazwa szablonu `SIGNIN` pochodzi od „sign in” i zostaje.
 
 Rozstrzygnięte (2026-09-23): **wszystkie modele generujące przez fal.ai** (§9.7) — Rodin Gen-2.5 i TRELLIS (3D), ElevenLabs Sound Effects v2, Lyria 3 Pro (jedyny silnik muzyki; selektor Engine usunięty), ElevenLabs TTS Turbo v2.5 (select modelu TTS usunięty, `speed` 0.7–1.2); TRELLIS wymaga dokładnie jednego zdjęcia; Meshy usunięty (rigging/animacje przejdą na model fal.ai wybrany później); parametry modeli spoza UI ustawia LLM tłumacza (`model_params`).
 
@@ -1967,7 +1983,7 @@ Rozstrzygnięte (2026-09-22): **generatory `image` i `sprite_animation` usunięt
 | # | Temat | Stan / propozycja |
 |---|---|---|
 | 1 | Domena e-mail marki w Resend | **zrobione** (2026-09-22): `veyraflow.eu` zweryfikowana, nadawca `website@veyraflow.eu` |
-| 2 | Ceny pakietów X (1000 kr.) i Y (10 000 kr.) | sugestia 19 USD / 79 PLN i 149 USD / 599 PLN (netto) |
+| 2 | Cena Pack S (1000 kr.) | sugestia 19 USD / 79 PLN netto (w `lib/plans.ts` 19 USD z oznaczeniem „indicative”). Pack L (10 000 kr.) **rozstrzygnięty 2026-09-25: 180 USD netto** |
 | 3 | Liczba kredytów Pro/Studio | 1000 / 3200 (marża ~33% / ~29%) — do akceptacji |
 | 4 | Dokładne ID modelu OpenAI „gpt 5.6 luna” i taniego modelu moderacji | zweryfikować w dokumentacji OpenAI |
 | 5 | Kolor marki, logo | placeholder `#7C5CFF` |
