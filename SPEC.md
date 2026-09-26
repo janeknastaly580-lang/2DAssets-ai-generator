@@ -249,6 +249,7 @@ Zasady przepływu:
 ├── middleware.ts                    ← odświeżanie sesji Supabase + guardy /app, /admin, ban (§5.2, §5.4)
 ├── app/
 │   ├── layout.tsx, globals.css      ← root layout (Providers: next-themes, TanStack Query, sonner) + CookieBanner + Analytics
+│   ├── icon.svg, favicon.ico        ← favicona karty przeglądarki (§17.1); Next.js podpina je automatycznie
 │   ├── not-found.tsx, error.tsx, global-error.tsx (error boundaries → raport błędu, §25.4)
 │   ├── (marketing)/                 ← layout z SiteHeader/SiteFooter; page.tsx (landing), pricing/, terms/, privacy/,
 │   │                                   cookies/, ai-disclosure/, impressum/, contact/
@@ -1453,6 +1454,7 @@ Webhooki dostawców (`fal`, `worker`) są po weryfikacji tylko potwierdzane (`20
 - Dostępność: focus rings, aria-labels, kontrast AA.
 - Stan ładowania: skeletony; błędy: toasty (sonner) + inline.
 - Nazwy w UI po angielsku; brak i18n.
+- **Favicona (od 2026-09-26)**: ten sam znak co `components/logo.tsx` — zaokrąglony kwadrat (`rect x=2 y=2 w=28 h=28 rx=7` w `viewBox 0 0 32 32`) z gradientem liniowym po przekątnej `#7C5CFF` → `#B08CFF` i białe „V” (`path d="M9 10l7 13 7-13"`, `stroke-width 3`, zaokrąglone końce i łączenia). Pliki w konwencji Next.js (bez wpisu w `metadata`): `app/icon.svg` (SVG, `<link rel="icon" type="image/svg+xml" sizes="any">`) oraz `app/favicon.ico` (zapas dla przeglądarek bez SVG: ICO z osadzonymi PNG 16/32/48 px wyrenderowanymi z `icon.svg` przez `sharp`). Middleware nie przechwytuje tych ścieżek (matcher pomija `favicon.ico` i `*.svg`). Przy zmianie logo trzeba zaktualizować oba pliki.
 - **Baner przed startem (od 2026-09-25)**: w `app/layout.tsx`, nad treścią każdej strony (marketing, auth, `/app`), pełnoszeroki pasek `role="alert"` z dużym napisem **„The site doesn't work yet”** (tło `bg-destructive`, biały pogrubiony tekst `text-2xl`, od `sm` `text-4xl`, wyśrodkowany). Nie da się go zamknąć; usunąć przy starcie produkcyjnym.
 
 ### 17.2 Strony publiczne (`(marketing)`)
